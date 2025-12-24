@@ -27,7 +27,6 @@ encryption_key = load_or_create_key()
 
 fernet = Fernet(encryption_key)
 
-
 def create_database():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -35,19 +34,15 @@ def create_database():
                  (username TEXT, email TEXT PRIMARY KEY, password TEXT)''')
     conn.commit()
     conn.close()
-
-
-def add_user_to_db(username, email, password):
+def add_user_to_db(username, email, password:str):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-
-    encrypted_password = fernet.encrypt(password.encode('utf-8')).decode('utf-8')
+    encrypted_password = fernet.encrypt(password.encode())
     c.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
               (username, email, encrypted_password))
+    registered_users[email] = username
     conn.commit()
     conn.close()
-
-
 def is_user_in_db(email):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -55,8 +50,6 @@ def is_user_in_db(email):
     user = c.fetchone()
     conn.close()
     return user is not None
-
-
 def get_password_from_db(email):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -65,12 +58,9 @@ def get_password_from_db(email):
     conn.close()
 
     if result:
-        encrypted_password_str = result[0]
-        encrypted_password_bytes = encrypted_password_str.encode('utf-8')
-        return fernet.decrypt(encrypted_password_bytes).decode('utf-8')
-
+        encrypted_password_bytes = result[0] 
+        return fernet.decrypt(encrypted_password_bytes)
     return None
-
 
 def handle_client(server: Server, client_socket):
     global registered_users, connected_users
@@ -89,24 +79,24 @@ def handle_client(server: Server, client_socket):
             break
 
         action = msg.get("action")
-        payload = msg.get("data", {}) or {}
+        payload = msg.get("data", {})
         user_email = payload.get("email")
 
         if action == "register":
-            username = (payload.get("username") or "").strip()
-            password = payload.get("password") or ""
-
+            username = payload.get("username")
+            password = payload.get("password")
             with lock:
                 if not user_email:
                     response = {"status": "error", "message": "Email missing."}
                 elif user_email in registered_users:
                     response = {"status": "error", "message": "Email already registered."}
                 else:
-                    try:
-                        add_user_to_db(username, user_email, password)  # ✅ בלי f
-                        response = {"status": "success", "message": "Registration successful.", "Username": username}
-                    except sqlite3.IntegrityError:
-                        response = {"status": "error", "message": "Email already registered."}
+                    registered_users[user_email] = payload
+                    connected_users[user_email] = client_socket
+                    response = {"status": "success", "message": "Registration successful.", "Username": payload.get("username")}
+                    if not is_user_in_db(user_email):
+                        add_user_to_db(username, user_email, password)
+                    
 
             client_socket.send(json.dumps(response).encode('utf-8'))
 
@@ -119,21 +109,19 @@ def handle_client(server: Server, client_socket):
                 elif user_email in connected_users:
                     response = {"status": "error", "message": "User already logged in."}
                 else:
-                    password = get_password_from_db(user_email)  # ✅ משתמש ב-fernet הגלובלי
-                    if password == payload.get("password"):
-                        response = {
-                            "status": "success",
-                            "message": "Login successful.",
-                            "Username": registered_users[user_email].get("username")  # (נשאר כמו אצלך)
-                        }
+                    password_decrypted = get_password_from_db(user_email).decode()
+                    password = payload.get("password")
+                    if password == password_decrypted:
+                        response = {"status": "success", "message": "Login successful.", "Username": registered_users[user_email].get("username")}
                         connected_users[user_email] = client_socket
                     else:
                         response = {"status": "error", "message": "Incorrect password."}
-
+                        
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "logout":
             print("LOGOUT")
+            connected_users.pop(user_email)
 
         else:
             response = {"status": "error", "message": "Unknown action."}

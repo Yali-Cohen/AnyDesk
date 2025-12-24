@@ -66,6 +66,7 @@ class MainWindow(QMainWindow):
 # ==================================================================
     def logout_action(self):
         self.send_logout_data(self.current_user)
+        self.update_status_label()
     def send_logout_data(self, logout_data):
         payload = {
                 "action": "logout",
