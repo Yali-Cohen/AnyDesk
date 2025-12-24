@@ -93,7 +93,8 @@ def handle_client(server: Server, client_socket):
                         response = {"status": "error", "message": "Incorrect password."}
                         
             client_socket.send(json.dumps(response).encode('utf-8'))
-
+        elif action == "logout":
+            print("LOGOUT")
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))

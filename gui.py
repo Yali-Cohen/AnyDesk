@@ -1,4 +1,5 @@
 import json
+import os
 import sys,ctypes
 from client1 import Client
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
@@ -7,7 +8,11 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon,QGuiApplication
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# בונה נתיב יחסי לתיקיית Images
+ICON_PATH = os.path.join(BASE_DIR, "Images", "anydesk_icon.png")
+ARROW_PATH = os.path.join(BASE_DIR, "Images", "down-arrow.png")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,13 +22,13 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            self.client.connect("10.0.0.9", 9090)
+            self.client.connect("10.136.41.21", 9090)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
         self.register_window = None
         self.login_window = None
         self.setWindowTitle("AnyDesk")
-        icon = QIcon(r"C:\Users\LiorCohen\OneDrive - fun flex ltd\משפחה\יהלי כהן\Projects\AnyDesk\Images\anydesk_icon.png")
+        icon = QIcon(ICON_PATH)
         self.setWindowIcon(icon)
 # ==================================================================
         container = QWidget()
@@ -37,12 +42,14 @@ class MainWindow(QMainWindow):
         screen_height = screen_size.height()
         self.setFixedSize(QSize(screen_width,screen_height))
         menubar = self.menuBar()
-        arrow_icon = QIcon(r"C:\Users\LiorCohen\OneDrive - fun flex ltd\משפחה\יהלי כהן\Projects\AnyDesk\Images\down-arrow.png")
-        register_login_menu = menubar.addMenu(arrow_icon, "down")
-        register_menu = register_login_menu.addAction("Register")
+        arrow_icon = QIcon(ARROW_PATH)
+        register_login_logout_menu = menubar.addMenu(arrow_icon, "down")
+        register_menu = register_login_logout_menu.addAction("Register")
         register_menu.triggered.connect(self.register_action)
-        login_menu = register_login_menu.addAction("Login")
+        login_menu = register_login_logout_menu.addAction("Login")
         login_menu.triggered.connect(self.login_action)
+        log_out_menu = register_login_logout_menu.addAction("Log Out")
+        log_out_menu.triggered.connect(self.logout_action)
         layout.addWidget(label)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -57,6 +64,14 @@ class MainWindow(QMainWindow):
         username = self.current_user.get("username", "User")
         self.status_label.setText(f"Welcome, {username}!")
 # ==================================================================
+    def logout_action(self):
+        self.send_logout_data(self.current_user)
+    def send_logout_data(self, logout_data):
+        payload = {
+                "action": "logout",
+                "data": logout_data
+            }
+        self.client.send_json(payload)
     def register_action(self):
         self.register_window = Register(self.client, self)
         self.register_window.show()
@@ -73,7 +88,7 @@ class Register(QWidget):
         self.client = client
         self.main_window = main_window
         self.setWindowTitle("Register")
-        self.setWindowIcon(QIcon(r"C:\Users\LiorCohen\OneDrive - fun flex ltd\משפחה\יהלי כהן\Projects\AnyDesk\Images\anydesk_icon.png"))
+        self.setWindowIcon(QIcon(ICON_PATH))
         self.layout = QGridLayout()
         self.setLayout(self.layout)
         
@@ -166,7 +181,7 @@ class Login(QWidget):
         self.client = client
         self.main_window = main_window
         self.setWindowTitle("Login")
-        self.setWindowIcon(QIcon(r"C:\Users\LiorCohen\OneDrive - fun flex ltd\משפחה\יהלי כהן\Projects\AnyDesk\Images\anydesk_icon.png"))
+        self.setWindowIcon(QIcon(ICON_PATH))
         self.layout = QGridLayout()
         self.setLayout(self.layout)
         
