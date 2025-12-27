@@ -1,4 +1,5 @@
 # server_main.py
+import random
 from cryptography.fernet import Fernet
 import json
 import threading
@@ -10,6 +11,8 @@ KEY_FILE = "fernet.key"
 
 registered_users = {}  # email -> user_data
 connected_users = {}   # email -> client_socket
+connected_by_address = {}  # address -> client_socket
+
 lock = threading.Lock()
 
 
@@ -26,23 +29,46 @@ def load_or_create_key():
 encryption_key = load_or_create_key()
 
 fernet = Fernet(encryption_key)
-
+def generate_anydesk_address():
+    key = random.randint(100000000, 999999999)
+    print("Generated AnyDesk Address:", key)
+    return str(key)
+    
 def create_database():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (username TEXT, email TEXT PRIMARY KEY, password TEXT)''')
+                 (username TEXT,
+                 email TEXT PRIMARY KEY,
+                 password TEXT,
+                 address TEXT UNIQUE)
+                 ''')
     conn.commit()
     conn.close()
 def add_user_to_db(username, email, password:str):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     encrypted_password = fernet.encrypt(password.encode())
-    c.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-              (username, email, encrypted_password))
-    registered_users[email] = username
+    address = generate_anydesk_address()
+    c.execute("INSERT INTO users (username, email, password, address) VALUES (?, ?, ?, ?)",
+              (username, email, encrypted_password, address))
     conn.commit()
     conn.close()
+def get_username_from_db(email):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("SELECT username FROM users WHERE email=?", (email,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else None
+def get_user_info_from_db(email: str):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("SELECT username, address FROM users WHERE email=?", (email,))
+    row = c.fetchone()
+    conn.close()
+    return row 
+
 def is_user_in_db(email):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -88,16 +114,16 @@ def handle_client(server: Server, client_socket):
             with lock:
                 if not user_email:
                     response = {"status": "error", "message": "Email missing."}
-                elif user_email in registered_users:
+                elif is_user_in_db(user_email):
                     response = {"status": "error", "message": "Email already registered."}
                 else:
+                    address = add_user_to_db(username, user_email, password)  # מחזיר address
                     registered_users[user_email] = payload
-                    connected_users[user_email] = client_socket
-                    response = {"status": "success", "message": "Registration successful.", "Username": payload.get("username")}
-                    if not is_user_in_db(user_email):
-                        add_user_to_db(username, user_email, password)
-                    
-
+                    response = {"status": "success",
+                                "message": "Registration successful.",
+                                "Username": payload.get("username")
+                                , "Address": address
+                                }
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "login":
@@ -112,21 +138,43 @@ def handle_client(server: Server, client_socket):
                     password_decrypted = get_password_from_db(user_email).decode()
                     password = payload.get("password")
                     if password == password_decrypted:
-                        response = {"status": "success", "message": "Login successful.", "Username": registered_users[user_email].get("username")}
+                        username_db, address = get_user_info_from_db(user_email)
+
+                        response = {
+                            "status": "success",
+                            "message": "Login successful.",
+                            "Username": username_db,
+                            "Address": address
+                        }
                         connected_users[user_email] = client_socket
+                        connected_by_address[address] = client_socket
                     else:
                         response = {"status": "error", "message": "Incorrect password."}
+
                         
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "logout":
-            print("LOGOUT")
-            connected_users.pop(user_email)
+            with lock:
+                if not user_email:
+                    response = {"status": "error", "message": "Email missing."}
+                else:
+                    info = get_user_info_from_db(user_email)
+                    address = info[1] if info else None
+
+                    connected_users.pop(user_email, None)
+                    if address:
+                        connected_by_address.pop(address, None)
+
+                    response = {"status": "success", "message": "Logged out."}
+
+            client_socket.send(json.dumps(response).encode('utf-8'))
 
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))
-
+        
+        print(connected_by_address)
         print(f"Handled action: {action} for {user_email} data: {payload}")
 
 

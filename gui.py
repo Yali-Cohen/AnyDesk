@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import sys,ctypes
 from client1 import Client
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
@@ -22,7 +23,7 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            self.client.connect("10.136.41.21", 9090)
+            self.client.connect("10.0.0.7", 9090)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
         self.register_window = None
@@ -33,7 +34,7 @@ class MainWindow(QMainWindow):
 # ==================================================================
         container = QWidget()
         self.setCentralWidget(container)
-        layout = QVBoxLayout(container)
+        self.layout = QVBoxLayout(container)
         label = QLabel("Welcome to AnyDesk")
         label.setAlignment(Qt.AlignCenter)
         primary_screen = QGuiApplication.primaryScreen()
@@ -50,23 +51,43 @@ class MainWindow(QMainWindow):
         login_menu.triggered.connect(self.login_action)
         log_out_menu = register_login_logout_menu.addAction("Log Out")
         log_out_menu.triggered.connect(self.logout_action)
-        layout.addWidget(label)
+        self.layout.addWidget(label)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.status_label)
+        self.layout.addWidget(self.status_label)
 
-        self.update_status_label()    
-    
+    def update_gui(self):
+        if self.is_authenticated and self.current_user:
+            self.show_authenticated_gui()
+            
+    def show_authenticated_gui(self):
+        self.key_label = QLabel("Your AnyDesk Address:")
+        self.key_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.key_label)
+        
+        address =  self.current_user.get("Address", "Unknown")
+        self.address_label = QLabel(address)
+        self.address_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.address_label)
+
     def update_status_label(self):
+        print("STATUS:", self.is_authenticated, self.current_user)
         if not self.is_authenticated or not self.current_user:
             self.status_label.setText("Please register or login to continue.")
             return
         username = self.current_user.get("username", "User")
         self.status_label.setText(f"Welcome, {username}!")
+        return
 # ==================================================================
     def logout_action(self):
         self.send_logout_data(self.current_user)
+        self.is_authenticated = False
+        self.current_user = {}
         self.update_status_label()
+        if hasattr(self, "key_label"):
+            self.key_label.deleteLater()
+        if hasattr(self, "address_label"):
+            self.address_label.deleteLater()
     def send_logout_data(self, logout_data):
         payload = {
                 "action": "logout",
@@ -166,11 +187,15 @@ class Register(QWidget):
                 QMessageBox.information(self, "Success", response.get("message", "Registration successful."))
                 self.close()
                 self.main_window.is_authenticated = True
+                address = response.get("Address", "")
                 self.main_window.current_user = {
                     "email": register_data["email"],
-                    "username": register_data["username"]
+                    "username": register_data["username"],
+                    "address": address
                 }
                 self.main_window.update_status_label()
+                self.main_window.update_gui()
+
             else:
                 QMessageBox.warning(self, "Register failed", response.get("message", "Error in registration."))
 
@@ -245,11 +270,15 @@ class Login(QWidget):
                 QMessageBox.information(self, "Success", message or "Login successful.")
                 self.close()
                 self.main_window.is_authenticated = True
+                address = response.get("Address", "")                                                   
                 self.main_window.current_user = {
                     "email": login_data["email"]
                     , "username": username
+                    , "address": address
                 }
                 self.main_window.update_status_label()
+                self.main_window.update_gui()
+
             else:
                 QMessageBox.warning(self, "Login failed", message or "Login error.")
 
