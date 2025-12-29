@@ -6,9 +6,9 @@ from client1 import Client
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon,QGuiApplication, QFont
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout
+from PySide6.QtCore import QSize, Qt, QRegularExpression
+from PySide6.QtGui import QIcon,QGuiApplication, QFont, QRegularExpressionValidator
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # בונה נתיב יחסי לתיקיית Images
@@ -55,10 +55,13 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.status_label)
+        self.build_remote_connect_gui()
+        self.remote_box.hide()
 
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
+            self.remote_box.show()
             
     def show_authenticated_gui(self):
         # אם כבר יצרת פעם – לא ליצור שוב
@@ -91,7 +94,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.address_label, 0, Qt.AlignVCenter)
         # אם אתה רוצה שכל השורה תהיה באמצע המסך:
         self.layout.addWidget(self.address_row, alignment=Qt.AlignHCenter)
-
+        
     def update_status_label(self):
         print("STATUS:", self.is_authenticated, self.current_user)
         if not self.is_authenticated or not self.current_user:
@@ -123,7 +126,42 @@ class MainWindow(QMainWindow):
     def login_action(self):
         self.login_window = Login(self.client, self)
         self.login_window.show()
+    def normalize_address(self, text):
+        return "".join(ch for ch in text if ch.isdigit())
 
+    def validate_address(self, address):
+        return address.isdigit() and 6 <= len(address) <= 15
+    def on_remote_input_changed(self, text):
+        addr = self.normalize_address(text)
+        is_valid = self.validate_address(addr)
+        self.connect_btn.setEnabled(is_valid)
+    def connect_to_remote(self):
+        remote_address = self.normalize_address(self.remote_input.text())
+        if not self.validate_address(remote_address):
+            QMessageBox.warning(self, "Invalid Address", "Please enter a valid remote address (6-15 digits).")
+            return
+        QMessageBox.information(self, "Connecting", f"Attempting to connect to {remote_address}...")
+        # כאן תוכל להוסיף את הלוגיקה להתחברות לכתובת מרחוק
+    def build_remote_connect_gui(self):
+        self.remote_box = QGroupBox("Connect to Remote Address")
+        box_layout = QHBoxLayout(self.remote_box)
+        box_layout.setContentsMargins(12, 10, 12, 10)
+        box_layout.setSpacing(10)
+        
+        self.remote_input = QLineEdit()
+        self.remote_input.setPlaceholderText("Enter Remote Address")
+        self.remote_input.setClearButtonEnabled(True)
+        
+        self.connect_btn = QPushButton("Connect")
+        self.connect_btn.setEnabled(False)
+        self.remote_input.textChanged.connect(self.on_remote_input_changed)
+        self.connect_btn.clicked.connect(self.connect_to_remote)
+        
+                
+        box_layout.addWidget(self.remote_input)
+        box_layout.addWidget(self.connect_btn) 
+        
+        self.layout.addWidget(self.remote_box, alignment=Qt.AlignHCenter)
 
 
 class Register(QWidget):
