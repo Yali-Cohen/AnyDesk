@@ -14,8 +14,6 @@ connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
 
 lock = threading.Lock()
-
-
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
         with open(KEY_FILE, "rb") as f:
@@ -24,8 +22,6 @@ def load_or_create_key():
     with open(KEY_FILE, "wb") as f:
         f.write(key)
     return key
-
-
 encryption_key = load_or_create_key()
 
 fernet = Fernet(encryption_key)
@@ -69,7 +65,6 @@ def get_user_info_from_db(email: str):
     row = c.fetchone()
     conn.close()
     return row 
-
 def is_user_in_db(email):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -88,7 +83,6 @@ def get_password_from_db(email):
         encrypted_password_bytes = result[0] 
         return fernet.decrypt(encrypted_password_bytes)
     return None
-
 def handle_client(server: Server, client_socket):
     global registered_users, connected_users
     print("New client connected.")
@@ -97,6 +91,17 @@ def handle_client(server: Server, client_socket):
         data = server.receive_data(client_socket)
         if not data:
             print("Client disconnected.")
+            if client_socket in connected_users.values():
+                with lock:
+                    for email, sock in list(connected_users.items()):
+                        if sock == client_socket:
+                            info = get_user_info_from_db(email)
+                            address = info[1] if info else None
+                            connected_users.pop(email, None)
+                            if address:
+                                connected_by_address.pop(address, None)
+                            print(f"User {email} disconnected and removed from connected users.")
+                            break
             break
 
         try:
@@ -162,10 +167,10 @@ def handle_client(server: Server, client_socket):
                 else:
                     info = get_user_info_from_db(user_email)
                     address = info[1] if info else None
-
                     connected_users.pop(user_email, None)
                     if address:
                         connected_by_address.pop(address, None)
+                        
 
                     response = {"status": "success", "message": "Logged out."}
 

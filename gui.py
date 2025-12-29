@@ -7,8 +7,8 @@ myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon,QGuiApplication
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox
+from PySide6.QtGui import QIcon,QGuiApplication, QFont
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # בונה נתיב יחסי לתיקיית Images
@@ -61,15 +61,36 @@ class MainWindow(QMainWindow):
             self.show_authenticated_gui()
             
     def show_authenticated_gui(self):
-        self.key_label = QLabel("Your AnyDesk Address:")
-        self.key_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.key_label)
-        print("CURRENT USER:", self.current_user)
-        address =  self.current_user.get("address", "Unknown")
-        print("ADDRESS:", address)
+        # אם כבר יצרת פעם – לא ליצור שוב
+        if hasattr(self, "address_row"):
+            self.address_label.setText(self.current_user.get("address", "Unknown"))
+            self.address_row.show()
+            return
+
+        # שורה אופקית נפרדת
+        self.address_row = QWidget()
+        row = QHBoxLayout(self.address_row)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(20)  # אם אתה רוצה ממש צמוד: שים 0
+
+        self.key_label = QLabel("Your Address")
+        self.key_label.setFont(QFont("Arial", 32))
+        self.key_label.setStyleSheet("color: black;")
+
+        address = self.current_user.get("address", "Unknown")
         self.address_label = QLabel(address)
-        self.address_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.address_label)
+        self.address_label.setFont(QFont("Arial", 48, QFont.Bold))
+        self.address_label.setStyleSheet("color: #ff4a3d;")
+
+        # כדי שלא “יתמתחו” וידחפו את הטקסט למרכז/רחוק
+        self.key_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.address_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+
+        # יישור בתוך השורה
+        row.addWidget(self.key_label, 0, Qt.AlignVCenter)
+        row.addWidget(self.address_label, 0, Qt.AlignVCenter)
+        # אם אתה רוצה שכל השורה תהיה באמצע המסך:
+        self.layout.addWidget(self.address_row, alignment=Qt.AlignHCenter)
 
     def update_status_label(self):
         print("STATUS:", self.is_authenticated, self.current_user)
