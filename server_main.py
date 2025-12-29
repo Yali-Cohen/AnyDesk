@@ -54,6 +54,7 @@ def add_user_to_db(username, email, password:str):
               (username, email, encrypted_password, address))
     conn.commit()
     conn.close()
+    return address
 def get_username_from_db(email):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()

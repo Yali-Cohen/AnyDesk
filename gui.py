@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            self.client.connect("10.0.0.7", 9090)
+            self.client.connect("10.0.0.19", 9090)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
         self.register_window = None
@@ -64,8 +64,9 @@ class MainWindow(QMainWindow):
         self.key_label = QLabel("Your AnyDesk Address:")
         self.key_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.key_label)
-        
-        address =  self.current_user.get("Address", "Unknown")
+        print("CURRENT USER:", self.current_user)
+        address =  self.current_user.get("address", "Unknown")
+        print("ADDRESS:", address)
         self.address_label = QLabel(address)
         self.address_label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.address_label)
