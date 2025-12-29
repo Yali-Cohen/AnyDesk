@@ -175,7 +175,26 @@ def handle_client(server: Server, client_socket):
                     response = {"status": "success", "message": "Logged out."}
 
             client_socket.send(json.dumps(response).encode('utf-8'))
-
+        elif action == "connect_request":
+            target_address = payload.get("target_address")
+            with lock:
+                target_socket = connected_by_address.get(target_address)
+                if target_socket:
+                    request_info = {
+                        "action": "incoming_connection",
+                        "data": {
+                            "from_email": user_email,
+                            "from_username": get_username_from_db(user_email)
+                        }
+                    }
+                    target_socket.send(json.dumps(request_info).encode('utf-8'))
+                    response = {"status": "success", "message": "Connection request sent."}
+                else:
+                    response = {"status": "error", "message": "Target address not found or user not connected."}
+            client_socket.send(json.dumps(response).encode('utf-8'))
+            
+        elif action == "incoming_response":
+            pass
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))

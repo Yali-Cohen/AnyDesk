@@ -141,7 +141,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Invalid Address", "Please enter a valid remote address (6-15 digits).")
             return
         QMessageBox.information(self, "Connecting", f"Attempting to connect to {remote_address}...")
-        # כאן תוכל להוסיף את הלוגיקה להתחברות לכתובת מרחוק
+        from_address = self.current_user.get("address", "")
+        email = self.current_user.get("email", "")
+        connect_data = {
+            "address_to_connect": remote_address,
+            "user": self.current_user,
+            "email": email,
+            "from_address": from_address
+        }
+        payload = {
+            "action": "connect_request",
+            "data": connect_data
+        }
+        print("Connecting with payload:", payload)
+        self.client.send_json(payload)
+        
     def build_remote_connect_gui(self):
         self.remote_box = QGroupBox("Connect to Remote Address")
         box_layout = QHBoxLayout(self.remote_box)
