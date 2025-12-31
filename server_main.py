@@ -108,12 +108,13 @@ def handle_client(server: Server, client_socket):
         except Exception as e:
             print("Failed to parse JSON:", e)
             break
-
+        print("Received message:", msg)
         action = msg.get("action")
         payload = msg.get("data", {})
-        user_email = payload.get("email")
-
+        user_email = payload.get("from_email")
+        print(f"Received action: {action} from {user_email} with data: {payload}")
         if action == "register":
+            user_email = payload.get("email")
             username = payload.get("username")
             password = payload.get("password")
             with lock:
@@ -132,6 +133,7 @@ def handle_client(server: Server, client_socket):
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "login":
+            user_email = payload.get("email")
             with lock:
                 if not user_email:
                     response = {"status": "error", "message": "Email missing."}
@@ -177,7 +179,6 @@ def handle_client(server: Server, client_socket):
         
         elif action == "connect_request":
             target_address = payload.get("target_address")
-
             from_email = payload.get("from_email")
             from_username = payload.get("from_username") or get_username_from_db(from_email)
             from_address = payload.get("from_address")
@@ -205,8 +206,34 @@ def handle_client(server: Server, client_socket):
             client_socket.send(json.dumps(response).encode("utf-8"))
 
         elif action == "incoming_response":
-            print("Handling incoming_response")
-            print(payload)
+            request_id = payload.get("request_id")
+            accepted = payload.get("accepted", False)
+            if request_id in pending_requests:
+                controller_socket, target_socket = pending_requests.pop(request_id)
+                response_payload = {
+                    "action": "connect_result",
+                    "data": {
+                        "accepted": accepted
+                    }
+                }
+                controller_socket.send(json.dumps(response_payload).encode("utf-8"))
+                if accepted:
+                    success_payload = {
+                        "action": "connection_established",
+                        "data": {
+                            "message": "Connection established. You can start remote support session."
+                        }
+                    }
+                    target_socket.send(json.dumps(success_payload).encode("utf-8"))
+        elif action == "connection_details":
+            response = {
+                "action": "connection_details",
+                "data": {
+                    "ip": payload.get("ip"),
+                    "port": payload.get("port")
+                }
+            }
+            client_socket.send(json.dumps(response).encode('utf-8'))    
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))

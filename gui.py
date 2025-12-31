@@ -4,6 +4,9 @@ import os
 import random
 import sys,ctypes
 from client1 import Client
+from register import Register
+from login import Login
+from server1 import Server
 from socket_listener import SocketListener
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -89,23 +92,46 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Result", "Accepted!" if accepted else "Declined."
             )
+        elif action == "connection_established":
+            server_connection = Server(host="0.0.0.0", port=0)
+            ip, port = server_connection.server_socket.getsockname()
+            self.client.send_json({
+                "action": "connection_details",
+                "data": {
+                    "ip": ip,
+                    "port": port
+                }
+            })
+            print(f"Listening for incoming connections on {ip}:{port}")
+            data = server_connection.server_socket.recv(4096).decode()
+            print("Received from client:", data)
+            server_connection.send_data(b"Hello from sholet!")
+        elif action == "connection_details":
+            ip = data.get("ip")
+            port = data.get("port")
+            QMessageBox.information(
+                self, "Connection Details", f"Connect to IP: {ip}, Port: {port}"
+            )
+            client_connection = Client()
+            client_connection.connect(ip, port)
+            client_connection.send(b"Hello from client!")
+            data = client_connection.receive()
+            print("Received from sholet:", data.decode('utf-8'))
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
             self.remote_box.show()
             
     def show_authenticated_gui(self):
-        # אם כבר יצרת פעם – לא ליצור שוב
         if hasattr(self, "address_row"):
             self.address_label.setText(self.current_user.get("address", "Unknown"))
             self.address_row.show()
             return
 
-        # שורה אופקית נפרדת
         self.address_row = QWidget()
         row = QHBoxLayout(self.address_row)
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(20)  # אם אתה רוצה ממש צמוד: שים 0
+        row.setSpacing(20) 
 
         self.key_label = QLabel("Your Address")
         self.key_label.setFont(QFont("Arial", 32))
@@ -215,184 +241,3 @@ class MainWindow(QMainWindow):
             self.socket_listener = SocketListener(self.client)
             self.socket_listener.message_received.connect(self.handle_server_message)
             self.socket_listener.start()
-class Register(QWidget):
-    def __init__(self, client, main_window=None):
-        super().__init__()
-        self.client = client
-        self.main_window = main_window
-        self.setWindowTitle("Register")
-        self.setWindowIcon(QIcon(ICON_PATH))
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
-        
-        title = QLabel("Register Form")
-        self.layout.addWidget(title, 0, 1)
-        
-        user = QLabel("Username:")
-        self.layout.addWidget(user, 1, 0)
-        
-        email = QLabel("Email:")
-        self.layout.addWidget(email, 2, 0)
-        
-        password = QLabel("Password:")
-        self.layout.addWidget(password, 3, 0)
-        
-        confirm_password = QLabel("Confirm Password:")
-        self.layout.addWidget(confirm_password, 4, 0)
-        
-        self.input_username = QLineEdit()
-        self.layout.addWidget(self.input_username, 1, 1)
-        
-        self.input_email = QLineEdit()
-        self.layout.addWidget(self.input_email, 2, 1)
-        
-        self.input_password = QLineEdit()
-        self.input_password.setEchoMode(QLineEdit.Password)
-        self.layout.addWidget(self.input_password, 3, 1)
-        
-        self.confirmed_password = QLineEdit()
-        self.confirmed_password.setEchoMode(QLineEdit.Password)
-        self.layout.addWidget(self.confirmed_password, 4, 1)
-        
-        register_button = QPushButton("Register")
-        self.layout.addWidget(register_button, 5, 1)
-        register_button.clicked.connect(self.register_user)
-        
-        cancel_button = QPushButton("Cancel")
-        self.layout.addWidget(cancel_button, 5, 0)
-        cancel_button.clicked.connect(self.close)
-    def input_validity_tests(self):
-        if not self.input_username.text().strip() or not self.input_email.text().strip() or not self.input_password.text() or not self.confirmed_password.text():
-            QMessageBox.warning(self, "Missing", "Please fill all the fields!"); return True
-        if "@" not in self.input_email.text() or "." not in self.input_email.text():
-            QMessageBox.warning(self, "Email", "Email address isn't correct."); return True
-        if len(self.input_password.text()) < 6:
-            QMessageBox.warning(self, "Password", "Password must be 6 characters length!"); return True
-        if self.input_password.text() != self.confirmed_password.text():
-            QMessageBox.warning(self, "Password", "Passwords doesn't match."); return True
-        return False
-        
-    def register_user(self):
-        if self.input_validity_tests():
-            return
-        register_data = {
-            "username": self.input_username.text().strip(),
-            "email": self.input_email.text().strip(),
-            "password": self.input_password.text()
-        }
-        self.send_register_data(register_data)
-    def send_register_data(self, register_data):
-        try:
-            payload = {
-                "action": "register",
-                "data": register_data
-            }
-            self.client.send_json(payload)
-
-            response = self.client.receive_json()
-            if not response:
-                QMessageBox.critical(self, "Error", "No response from server.")
-                return
-
-            if response.get("status") == "success":
-                QMessageBox.information(self, "Success", response.get("message", "Registration successful."))
-                self.close()
-                self.main_window.is_authenticated = True
-                address = response.get("Address", "")
-                self.main_window.current_user = {
-                    "email": register_data["email"],
-                    "username": register_data["username"],
-                    "address": address
-                }
-                self.main_window.update_status_label()
-                self.main_window.update_gui()
-                self.main_window.start_listener_once()
- 
-            else:
-                QMessageBox.warning(self, "Register failed", response.get("message", "Error in registration."))
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to send data: {e}")
-class Login(QWidget):
-    def __init__(self, client, main_window=None):
-        super().__init__()
-        self.client = client
-        self.main_window = main_window
-        self.setWindowTitle("Login")
-        self.setWindowIcon(QIcon(ICON_PATH))
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
-        
-        title = QLabel("Login Form")
-        self.layout.addWidget(title, 0, 1)
-        
-        user_email = QLabel("Email:")
-        self.layout.addWidget(user_email, 1, 0)
-        
-        password = QLabel("Password:")
-        self.layout.addWidget(password, 2, 0)
-        
-        self.input_user_email = QLineEdit()
-        self.layout.addWidget(self.input_user_email, 1, 1)
-        
-        self.input_password = QLineEdit()
-        self.input_password.setEchoMode(QLineEdit.Password)
-        self.layout.addWidget(self.input_password, 2, 1)
-        
-        login_button = QPushButton("Login")
-        self.layout.addWidget(login_button, 3, 1)
-        login_button.clicked.connect(self.login_user)
-        
-        cancel_button = QPushButton("Cancel")
-        self.layout.addWidget(cancel_button, 3, 0)
-        cancel_button.clicked.connect(self.close)
-    def input_validity_tests(self):
-        if not self.input_user_email.text().strip() or not self.input_password.text():
-            QMessageBox.warning(self, "Missing", "Please fill all the fields!"); return True
-        if "@" not in self.input_user_email.text() or "." not in self.input_user_email.text():
-            QMessageBox.warning(self, "Email", "Email address isn't correct."); return True
-        if len(self.input_password.text()) < 6:
-            QMessageBox.warning(self, "Password", "Password must be 6 characters length!"); return True
-        return False
-    def login_user(self):
-        if self.input_validity_tests():
-            return
-        login_data = {
-            "email": self.input_user_email.text().strip(),
-            "password": self.input_password.text()
-        }
-        self.send_login_data(login_data)
-    def send_login_data(self, login_data):
-        try:
-            payload = {
-                "action": "login",
-                "data": login_data
-            }
-            self.client.send_json(payload)
-
-            response = self.client.receive_json()
-            if not response:
-                QMessageBox.critical(self, "Error", "No response from server.")
-                return
-
-            status = response.get("status")
-            message = response.get("message", "")
-            username = response.get("Username", "")
-            if status == "success":
-                QMessageBox.information(self, "Success", message or "Login successful.")
-                self.close()
-                self.main_window.is_authenticated = True
-                address = response.get("Address", "")                                                   
-                self.main_window.current_user = {
-                    "email": login_data["email"]
-                    , "username": username
-                    , "address": address
-                }
-                self.main_window.update_status_label()
-                self.main_window.update_gui()
-                self.main_window.start_listener_once()
-            else:
-                QMessageBox.warning(self, "Login failed", message or "Login error.")
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to send data: {e}")
