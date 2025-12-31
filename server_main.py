@@ -12,7 +12,7 @@ KEY_FILE = "fernet.key"
 registered_users = {}  # email -> user_data
 connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
-
+pending_requests = {}  # request_id -> (from_email, to_address)
 lock = threading.Lock()
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
@@ -28,8 +28,7 @@ fernet = Fernet(encryption_key)
 def generate_anydesk_address():
     key = random.randint(100000000, 999999999)
     print("Generated AnyDesk Address:", key)
-    return str(key)
-    
+    return str(key)  
 def create_database():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -175,24 +174,34 @@ def handle_client(server: Server, client_socket):
                     response = {"status": "success", "message": "Logged out."}
 
             client_socket.send(json.dumps(response).encode('utf-8'))
+        
         elif action == "connect_request":
             target_address = payload.get("target_address")
+
+            from_email = payload.get("from_email")
+            from_username = payload.get("from_username") or get_username_from_db(from_email)
+            from_address = payload.get("from_address")
+
             with lock:
                 target_socket = connected_by_address.get(target_address)
+
                 if target_socket:
                     request_info = {
                         "action": "incoming_connection",
                         "data": {
-                            "from_email": user_email,
-                            "from_username": get_username_from_db(user_email)
+                            "from_email": from_email,
+                            "from_username": from_username,
+                            "from_address": from_address  
                         }
                     }
-                    target_socket.send(json.dumps(request_info).encode('utf-8'))
+                    target_socket.send(json.dumps(request_info).encode("utf-8"))
                     response = {"status": "success", "message": "Connection request sent."}
                 else:
                     response = {"status": "error", "message": "Target address not found or user not connected."}
-            client_socket.send(json.dumps(response).encode('utf-8'))
-            
+
+            client_socket.send(json.dumps(response).encode("utf-8"))
+
+        
         elif action == "incoming_response":
             pass
         else:

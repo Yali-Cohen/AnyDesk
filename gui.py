@@ -1,8 +1,10 @@
+#gui.py
 import json
 import os
 import random
 import sys,ctypes
 from client1 import Client
+from socket_listener import SocketListener
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -23,7 +25,7 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            self.client.connect("10.0.0.19", 9090)
+            self.client.connect("10.136.41.21", 9090)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
         self.register_window = None
@@ -57,7 +59,34 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.status_label)
         self.build_remote_connect_gui()
         self.remote_box.hide()
-
+    def handle_server_message(self, msg:dict):
+        action = msg.get("action")
+        data = msg.get("data", {})
+        if action == "incoming_connection":
+            from_username = data.get("from_username", "Unknown")
+            from_address = data.get("from_address", "Unknown")
+            request_id = data.get("request_id")
+            
+            ans = QMessageBox.question(
+                self,
+                "Incoming Connection",
+                f"{from_username} wants to connect. Accept?",
+                QMessageBox.Yes | QMessageBox.No
+            )            
+            accepted = (ans == QMessageBox.Yes)
+            response_payload = {
+                "action": "incoming_response",
+                "data": {
+                    "request_id": request_id,
+                    "accepted": accepted
+                }
+            }
+            self.client.send_json(response_payload)
+        elif action == "connect_result":
+            accepted = data.get("accepted", False)
+            QMessageBox.information(
+                self, "Result", "Accepted!" if accepted else "Declined."
+            )
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
@@ -113,6 +142,8 @@ class MainWindow(QMainWindow):
             self.key_label.deleteLater()
         if hasattr(self, "address_label"):
             self.address_label.deleteLater()
+        if self.socket_listener:
+            self.socket_listener.stop()
     def send_logout_data(self, logout_data):
         payload = {
                 "action": "logout",
@@ -143,11 +174,12 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Connecting", f"Attempting to connect to {remote_address}...")
         from_address = self.current_user.get("address", "")
         email = self.current_user.get("email", "")
+        username = self.current_user.get("username", "")
         connect_data = {
-            "address_to_connect": remote_address,
-            "user": self.current_user,
-            "email": email,
-            "from_address": from_address
+            "from_email": email,
+            "from_username": username,
+            "from_address": from_address,
+            "target_address": remote_address
         }
         payload = {
             "action": "connect_request",
@@ -176,8 +208,11 @@ class MainWindow(QMainWindow):
         box_layout.addWidget(self.connect_btn) 
         
         self.layout.addWidget(self.remote_box, alignment=Qt.AlignHCenter)
-
-
+    def start_listener_once(self):
+        if not hasattr(self, "socket_listener"):
+            self.socket_listener = SocketListener(self.client)
+            self.socket_listener.message_received.connect(self.handle_server_message)
+            self.socket_listener.start()
 class Register(QWidget):
     def __init__(self, client, main_window=None):
         super().__init__()
@@ -269,7 +304,8 @@ class Register(QWidget):
                 }
                 self.main_window.update_status_label()
                 self.main_window.update_gui()
-
+                self.main_window.start_listener_once()
+ 
             else:
                 QMessageBox.warning(self, "Register failed", response.get("message", "Error in registration."))
 
@@ -352,7 +388,7 @@ class Login(QWidget):
                 }
                 self.main_window.update_status_label()
                 self.main_window.update_gui()
-
+                self.main_window.start_listener_once()
             else:
                 QMessageBox.warning(self, "Login failed", message or "Login error.")
 
