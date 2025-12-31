@@ -2,7 +2,7 @@ import socket
 class Server:
     def __init__(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind(("0.0.0.0", 9090))
+        self.server_socket.bind(("0.0.0.0", 8080))
         self.server_socket.listen(5)
         self.connections = 0
     def accept_connection(self):    

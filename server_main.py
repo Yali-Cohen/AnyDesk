@@ -12,7 +12,7 @@ KEY_FILE = "fernet.key"
 registered_users = {}  # email -> user_data
 connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
-pending_requests = {}  # request_id -> (from_email, to_address)
+pending_requests = {}  # request_id -> (controller_socket, target_socket)
 lock = threading.Lock()
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
@@ -186,12 +186,15 @@ def handle_client(server: Server, client_socket):
                 target_socket = connected_by_address.get(target_address)
 
                 if target_socket:
+                    request_id = str(random.randint(100000, 999999))
+                    pending_requests[request_id] = (client_socket, target_socket)
                     request_info = {
                         "action": "incoming_connection",
                         "data": {
                             "from_email": from_email,
                             "from_username": from_username,
-                            "from_address": from_address  
+                            "from_address": from_address,
+                            "request_id": request_id
                         }
                     }
                     target_socket.send(json.dumps(request_info).encode("utf-8"))
@@ -201,9 +204,9 @@ def handle_client(server: Server, client_socket):
 
             client_socket.send(json.dumps(response).encode("utf-8"))
 
-        
         elif action == "incoming_response":
-            pass
+            print("Handling incoming_response")
+            print(payload)
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))

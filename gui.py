@@ -25,7 +25,9 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            self.client.connect("10.136.41.21", 9090)
+            print("Connecting to server...")
+            self.client.connect("10.87.83.196", 8080)
+            print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
         self.register_window = None
@@ -70,7 +72,7 @@ class MainWindow(QMainWindow):
             ans = QMessageBox.question(
                 self,
                 "Incoming Connection",
-                f"{from_username} wants to connect. Accept?",
+                f"{from_username} wants to connect from {from_address}. Accept?",
                 QMessageBox.Yes | QMessageBox.No
             )            
             accepted = (ans == QMessageBox.Yes)
