@@ -1,0 +1,3 @@
+cryptography
+PySide6
+pyautogui
