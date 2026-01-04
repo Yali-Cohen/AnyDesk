@@ -24,3 +24,7 @@ class Server:
             self.connections -= 1
     def close(self):
         self.server_socket.close()
+    def get_local_ip(self):
+        hostname = socket.gethostname() 
+        ip_address = socket.gethostbyname(hostname) 
+        return ip_address
