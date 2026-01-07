@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("10.87.83.196", 8080)
+            self.client.connect("10.247.254.196", 8080)
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -92,9 +92,11 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Result", "Accepted!" if accepted else "Declined."
             )
-        elif action == "connection_established":
-            server_connection = Server(host="0.0.0.0", port=0)
-            ip, port = server_connection.server_socket.getsockname()
+        elif action == "connection_established":#Controlled side, Server
+            print("Connection established, setting up server...")
+            server_connection = Server(host="0.0.0.0", port=9080)
+            ip, port = server_connection.getsockname()
+            print(f"ip sent to sholet {ip}")
             self.client.send_json({
                 "action": "connection_details",
                 "data": {
@@ -102,21 +104,26 @@ class MainWindow(QMainWindow):
                     "port": port
                 }
             })
+            client_socket = server_connection.accept_connection()
             print(f"Listening for incoming connections on {ip}:{port}")
-            data = server_connection.server_socket.recv(4096).decode()
+            data = client_socket.recv(4096)
             print("Received from client:", data)
-            server_connection.send_data(b"Hello from sholet!")
-        elif action == "connection_details":
+            client_socket.send_data(b"Hello from sholet!")
+            print("Sent greeting to client.")
+        elif action == "connection_details":#Controller side
+            print("Received connection details from server.")
             ip = data.get("ip")
             port = data.get("port")
             QMessageBox.information(
                 self, "Connection Details", f"Connect to IP: {ip}, Port: {port}"
             )
+            print(f"Connection to {ip}, {port}")
             client_connection = Client()
             client_connection.connect(ip, port)
             client_connection.send(b"Hello from client!")
             data = client_connection.receive()
             print("Received from sholet:", data.decode('utf-8'))
+            print("Connection established successfully.")
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()

@@ -1,6 +1,8 @@
 import socket
 class Server:
     def __init__(self, host="0.0.0.0", port=8080):
+        self.port = port
+        self.ip = socket.gethostbyname(socket.gethostname())
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((host, port))
         self.server_socket.listen(5)
@@ -22,5 +24,9 @@ class Server:
     def decrement_connections(self):
         if self.connections > 0:
             self.connections -= 1
+    def getsockname(self):
+        print(f"Server is listening on port: {self.port}")
+        print(f"Server is listening on IP: {self.ip}")
+        return (self.ip, self.port)
     def close(self):
         self.server_socket.close()
