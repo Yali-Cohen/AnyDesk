@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("10.247.254.196", 8080)
+            self.client.connect("10.0.0.7", 8080)
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -94,12 +94,14 @@ class MainWindow(QMainWindow):
             )
         elif action == "connection_established":#Controlled side, Server
             print("Connection established, setting up server...")
+            session_id = data.get("session_id")
             server_connection = Server(host="0.0.0.0", port=9080)
             ip, port = server_connection.getsockname()
             print(f"ip sent to sholet {ip}")
             self.client.send_json({
                 "action": "connection_details",
                 "data": {
+                    "session_id": session_id,
                     "ip": ip,
                     "port": port
                 }
@@ -108,7 +110,7 @@ class MainWindow(QMainWindow):
             print(f"Listening for incoming connections on {ip}:{port}")
             data = client_socket.recv(4096)
             print("Received from client:", data)
-            client_socket.send_data(b"Hello from sholet!")
+            client_socket.send(b"Hello from sholet!")
             print("Sent greeting to client.")
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")

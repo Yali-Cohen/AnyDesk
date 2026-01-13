@@ -13,6 +13,7 @@ registered_users = {}  # email -> user_data
 connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
 pending_requests = {}  # request_id -> (controller_socket, target_socket)
+active_sessions = {}  # session_id -> (controller_socket, target_socket)
 lock = threading.Lock()
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
@@ -208,32 +209,59 @@ def handle_client(server: Server, client_socket):
         elif action == "incoming_response":
             request_id = payload.get("request_id")
             accepted = payload.get("accepted", False)
+            
             if request_id in pending_requests:
                 controller_socket, target_socket = pending_requests.pop(request_id)
+                
+                if accepted:
+                    active_sessions[request_id] = (controller_socket, target_socket)
                 response_payload = {
                     "action": "connect_result",
                     "data": {
-                        "accepted": accepted
+                        "accepted": accepted,
+                        "session_id": request_id
                     }
                 }
                 controller_socket.send(json.dumps(response_payload).encode("utf-8"))
+                
                 if accepted:
                     success_payload = {
                         "action": "connection_established",
                         "data": {
+                            "session_id": request_id,
                             "message": "Connection established. You can start remote support session."
                         }
                     }
                     target_socket.send(json.dumps(success_payload).encode("utf-8"))
         elif action == "connection_details":
-            response = {
-                "action": "connection_details",
-                "data": {
-                    "ip": payload.get("ip"),
-                    "port": payload.get("port")
+            session_id = payload.get("session_id")
+            ip = payload.get("ip")
+            port = payload.get("port")
+            
+            if not session_id or session_id not in active_sessions:
+                response = {
+                    "status": "error",
+                    "message": "Invalid or expired session_id"
                 }
-            }
-            client_socket.send(json.dumps(response).encode('utf-8'))    
+                client_socket.send(json.dumps(response).encode('utf-8'))
+            else:
+                controller_socket, target_socket = active_sessions[session_id]
+                if client_socket != target_socket:
+                    response = {
+                        "status": "error",
+                        "message": "Only target can send connection_details"
+                    }
+                    client_socket.send(json.dumps(response).encode('utf-8'))
+                else:
+                    response = {
+                        "action": "connection_details",
+                        "data": {
+                            "session_id": session_id,
+                            "ip": ip,
+                            "port": port
+                        }
+                    }
+                    controller_socket.send(json.dumps(response).encode('utf-8'))
         else:
             response = {"status": "error", "message": "Unknown action."}
             client_socket.send(json.dumps(response).encode('utf-8'))
