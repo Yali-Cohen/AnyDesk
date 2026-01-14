@@ -92,10 +92,11 @@ class MainWindow(QMainWindow):
         client_keyboard_socket = server_keyboard_connection.accept_connection()
         client_screen_socket = server_screen_connection.accept_connection()
     def connect_to_server_sockets(self):
-        payload = self.client_connection.receive().decode()
-        print(payload)
-        ip = payload.get("IP")
-        ports = payload.get("ports")
+        payload = self.client_connection.receive()
+        msg = json.loads(payload.decode("utf-8"))
+        print(msg)
+        ip = msg.get("IP")
+        ports = msg.get("ports")
         mouse_port = ports[0]
         keyboard_port = ports[1]
         screen_port = ports[2]
