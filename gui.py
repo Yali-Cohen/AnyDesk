@@ -66,13 +66,10 @@ class MainWindow(QMainWindow):
         self.remote_box.hide()
     def send_ports_to_full_connection(self):
         server_mouse_connection = Server(host="0.0.0.0", port=0)
-        client_mouse_socket = server_mouse_connection.accept_connection()
         mouse_port = server_mouse_connection.port
         server_keyboard_connection = Server(host="0.0.0.0", port=0)
-        client_keyboard_socket = server_keyboard_connection.accept_connection()
         keyboard_port = server_keyboard_connection.port
         server_screen_connection = Server(host="0.0.0.0", port=0)
-        client_screen_socket = server_screen_connection.accept_connection()
         screen_port = server_screen_connection.port
         ports = (mouse_port, keyboard_port, screen_port)
         ports_payload = {
@@ -81,6 +78,9 @@ class MainWindow(QMainWindow):
         }
         print(f"Sending to client payload: {ports_payload}")
         self.server_connection.send_json(ports_payload)
+        client_mouse_socket = server_mouse_connection.accept_connection()
+        client_keyboard_socket = server_keyboard_connection.accept_connection()
+        client_screen_socket = server_screen_connection.accept_connection()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
         print(payload)
