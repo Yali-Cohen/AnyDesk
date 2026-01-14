@@ -104,6 +104,7 @@ class MainWindow(QMainWindow):
         print(ip)
         mouse_client = Client()
         mouse_client.connect(ip, mouse_port)
+        
         keyboard_client = Client()
         keyboard_client.connect(ip,keyboard_port)
         screen_client = Client()
