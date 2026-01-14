@@ -29,6 +29,12 @@ class Server:
         print(f"Server is listening on port: {self.port}")
         print(f"Server is listening on IP: {self.ip}")
         return (self.ip, self.port)
+    def send(self, data: bytes):
+        self.server_socket.sendall(data)
+
+    def receive(self, buffer_size=4096):
+        return self.server_socket.recv(buffer_size)
+
     def send_json(self, obj: dict):
         data = json.dumps(obj).encode('utf-8')
         self.send(data)
