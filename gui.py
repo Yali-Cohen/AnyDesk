@@ -64,6 +64,23 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.status_label)
         self.build_remote_connect_gui()
         self.remote_box.hide()
+    def send_ports_to_full_connection(self):
+        server_mouse_connection = Server(host="0.0.0.0", port=0)
+        mouse_port = server_mouse_connection.port
+        server_keyboard_connection = Server(host="0.0.0.0", port=0)
+        keyboard_port = server_keyboard_connection.port
+        server_screen_connection = Server(host="0.0.0.0", port=0)
+        screen_port = server_screen_connection.port
+        ports = (mouse_port, keyboard_port, screen_port)
+        ports_payload = {
+            "IP": self.ip,
+            "ports": ports
+        }
+        print(f"Sending to client payload: {ports_payload}")
+        self.server_connection.send_json(ports_payload)
+    def connect_to_server_sockets(self):
+        payload = self.client_connection.receive()
+        print(payload)
     def handle_server_message(self, msg:dict):
         action = msg.get("action")
         data = msg.get("data", {})
@@ -95,23 +112,25 @@ class MainWindow(QMainWindow):
         elif action == "connection_established":#Controlled side, Server
             print("Connection established, setting up server...")
             session_id = data.get("session_id")
-            server_connection = Server(host="0.0.0.0", port=9080)
-            ip, port = server_connection.getsockname()
-            print(f"ip sent to sholet {ip}")
+            self.server_connection = Server(host="0.0.0.0", port=9080)
+            self.ip, port = self.server_connection.getsockname()
+            print(f"ip sent to sholet {self.ip}")
             self.client.send_json({
                 "action": "connection_details",
                 "data": {
                     "session_id": session_id,
-                    "ip": ip,
+                    "ip": self.ip,
                     "port": port
                 }
             })
-            client_socket = server_connection.accept_connection()
-            print(f"Listening for incoming connections on {ip}:{port}")
+            client_socket = self.server_connection.accept_connection()
+            print(f"Listening for incoming connections on {self.ip}:{port}")
             data = client_socket.recv(4096)
             print("Received from client:", data)
             client_socket.send(b"Hello from sholet!")
             print("Sent greeting to client.")
+            self.send_ports_to_full_connection(client_socket)
+
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
             ip = data.get("ip")
@@ -120,12 +139,13 @@ class MainWindow(QMainWindow):
                 self, "Connection Details", f"Connect to IP: {ip}, Port: {port}"
             )
             print(f"Connection to {ip}, {port}")
-            client_connection = Client()
-            client_connection.connect(ip, port)
-            client_connection.send(b"Hello from client!")
-            data = client_connection.receive()
+            self.client_connection = Client()
+            self.client_connection.connect(ip, port)
+            self.client_connection.send(b"Hello from client!")
+            data = self.client_connection.receive()
             print("Received from sholet:", data.decode('utf-8'))
             print("Connection established successfully.")
+            self.connect_to_server_sockets()
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()

@@ -1,10 +1,10 @@
 import socket
 class Server:
     def __init__(self, host="0.0.0.0", port=8080):
-        self.port = port
         self.ip = socket.gethostbyname(socket.gethostname())
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((host, port))
+        self.port = self.server_socket.getsockname()[1]
         self.server_socket.listen(5)
         self.connections = 0
     def accept_connection(self):    
