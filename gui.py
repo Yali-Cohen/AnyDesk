@@ -64,7 +64,17 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.status_label)
         self.build_remote_connect_gui()
         self.remote_box.hide()
-    def send_ports_to_full_connection(self):
+    def send(self, data: bytes, client_socket):
+        client_socket.sendall(data)
+
+    def receive(self, buffer_size=4096):
+        return self.client_socket.recv(buffer_size)
+
+    def send_json(self, obj: dict, client_socket):
+        data = json.dumps(obj).encode('utf-8')
+        self.send(data,client_socket)
+
+    def send_ports_to_full_connection(self, client_socket):
         server_mouse_connection = Server(host="0.0.0.0", port=0)
         mouse_port = server_mouse_connection.port
         server_keyboard_connection = Server(host="0.0.0.0", port=0)
@@ -77,7 +87,7 @@ class MainWindow(QMainWindow):
             "ports": ports
         }
         print(f"Sending to client payload: {ports_payload}")
-        self.server_connection.send_json(ports_payload)
+        self.send_json(ports_payload, client_socket)
         client_mouse_socket = server_mouse_connection.accept_connection()
         client_keyboard_socket = server_keyboard_connection.accept_connection()
         client_screen_socket = server_screen_connection.accept_connection()
@@ -132,7 +142,7 @@ class MainWindow(QMainWindow):
             print("Received from client:", data)
             client_socket.send(b"Hello from sholet!")
             print("Sent greeting to client.")
-            self.send_ports_to_full_connection()
+            self.send_ports_to_full_connection(client_socket)
 
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
