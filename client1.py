@@ -13,6 +13,7 @@ class Client:
             return
         self.client_socket.connect((host, port))
         self.connected = True
+        print("Connected")
     def get_socket(self):
         return self.client_socket
     def send(self, data: bytes):

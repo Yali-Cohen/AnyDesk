@@ -102,6 +102,12 @@ class MainWindow(QMainWindow):
         screen_port = ports[2]
         print(mouse_port, keyboard_port, screen_port)
         print(ip)
+        mouse_client = Client()
+        mouse_client.connect(ip, mouse_port)
+        keyboard_client = Client()
+        keyboard_client.connect(ip,keyboard_port)
+        screen_client = Client()
+        screen_client.connect(ip, screen_port)
     def handle_server_message(self, msg:dict):
         action = msg.get("action")
         data = msg.get("data", {})
