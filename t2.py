@@ -1,9 +1,16 @@
-#server.py
+#client.py, controller
 import time
+from client1 import Client
+
 from server1 import Server
 from input_capture import InputCapture, MouseEvent
 from threading import Thread
-def handle_mouse_server():
+c = Client()
+c.connect("192.168.1.228", 1234)
+print(c.receive())
+c.send("Hello from client".encode())
+
+def handle_mouse():
     inputCapture = InputCapture()
     def handle_event(ev: MouseEvent):
         print(ev)
@@ -20,8 +27,5 @@ def handle_mouse_server():
     finally:
         cap.stop()
         print("Bye.")
-s = Server(port=0)
-client_socket = s.accept_connection()
-client_socket.send(b"Hello from server")
-print(client_socket.recv(1024).decode())
-t = Thread(target=handle_mouse_server)
+t = Thread(target=handle_mouse)
+t.start()
