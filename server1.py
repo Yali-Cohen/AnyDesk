@@ -1,3 +1,4 @@
+import json
 import socket
 class Server:
     def __init__(self, host="0.0.0.0", port=8080):
@@ -28,5 +29,15 @@ class Server:
         print(f"Server is listening on port: {self.port}")
         print(f"Server is listening on IP: {self.ip}")
         return (self.ip, self.port)
+    def send_json(self, obj: dict):
+        data = json.dumps(obj).encode('utf-8')
+        self.send(data)
+
+    def receive_json(self):
+        data = self.receive()
+        if not data:
+            return None
+        return json.loads(data.decode('utf-8'))
+
     def close(self):
         self.server_socket.close()
