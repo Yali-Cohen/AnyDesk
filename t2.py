@@ -1,8 +1,7 @@
 #client.py, controller
 import time
 from client1 import Client
-
-from server1 import Server
+from pynput.mouse import Button
 from input_capture import InputCapture, MouseEvent
 from threading import Thread
 c = Client()
@@ -10,10 +9,33 @@ c.connect("192.168.1.228", 1234)
 print(c.receive())
 c.send("Hello from client".encode())
 
+def mouse_event_to_dict(ev: MouseEvent) -> dict:
+    d = {
+        "type": ev.type,
+        "ts": ev.ts,
+        "x": ev.x,
+        "y": ev.y,
+        "pressed": ev.pressed,
+        "dx": ev.dx,
+        "dy": ev.dy,
+    }
+    if ev.button is not None:
+        if ev.button == Button.left:
+            d["button"] = "left"
+        elif ev.button == Button.right:
+            d["button"] = "right"
+        elif ev.button == Button.middle:
+            d["button"] = "middle"
+        else:
+            d["button"] = str(ev.button)
+    else:
+        d["button"] = None
+    return d
 def handle_mouse():
     inputCapture = InputCapture()
     def handle_event(ev: MouseEvent):
         print(ev)
+        
 
     cap = InputCapture(on_event=handle_event, move_hz=60, debug_print=False)
     cap.start()
