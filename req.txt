@@ -1,4 +1,4 @@
 cryptography
 pyautogui
-PySide6.QtCore
+PySide6
 pynput
