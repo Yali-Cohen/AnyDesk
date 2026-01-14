@@ -93,14 +93,14 @@ class MainWindow(QMainWindow):
         client_screen_socket = server_screen_connection.accept_connection()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive().decode()
-        ip = payload["IP"]
-        ports = payload["ports"]
+        print(payload)
+        ip = payload.get("IP")
+        ports = payload.get("ports")
         mouse_port = ports[0]
         keyboard_port = ports[1]
         screen_port = ports[2]
         print(mouse_port, keyboard_port, screen_port)
         print(ip)
-        print(payload)
     def handle_server_message(self, msg:dict):
         action = msg.get("action")
         data = msg.get("data", {})
