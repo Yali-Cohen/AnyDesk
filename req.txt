@@ -1,0 +1,4 @@
+cryptography
+pyautogui
+PySide6.QtCore
+pynput
