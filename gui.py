@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
             print("Received from client:", data)
             client_socket.send(b"Hello from sholet!")
             print("Sent greeting to client.")
-            self.send_ports_to_full_connection(client_socket)
+            self.send_ports_to_full_connection()
 
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
