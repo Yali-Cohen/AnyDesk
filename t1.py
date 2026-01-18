@@ -1,5 +1,6 @@
-#client, controlled
+#Server, controlled
 
+import json
 from threading import Thread
 from server1 import Server
 from input_controller import InputController
@@ -29,11 +30,33 @@ def dict_to_mouse_event(d: dict) -> MouseEvent:
         dx=d.get("dx"),
         dy=d.get("dy"),
     )
-def handle_mouse():
-    inputController = InputController()
-    apply_mouse_event(ev)
+def apply_mouse_event(ev: MouseEvent):
+    if ev.type == "move":
+        mouse_ctl.position = (ev.x, ev.y)
+    elif ev.type == "click":
+        if ev.pressed:
+            mouse_ctl.press(ev.button)
+        else:
+            mouse_ctl.release(ev.button)
+
+    elif ev.type == "scroll":
+        mouse_ctl.position = (ev.x, ev.y)
+        mouse_ctl.scroll(ev.dx or 0, ev.dy or 0)
+def data_to_ev(data):
+    data_json = json.loads(data)
+    print(data_json)
+    return dict_to_mouse_event(data_json)
+def handle_mouse(sock):
+    while True:
+        data = sock.recv(1024).decode()
+        if data:
+            ev = data_to_ev(data)
+            print("EV", ev)
+            apply_mouse_event(ev)
 s = Server(port=1234)
 client_socket = s.accept_connection()
 client_socket.send(b"Hello from server")
 print(client_socket.recv(1024).decode())
-t = Thread(target=handle_mouse())
+t = Thread(target=handle_mouse, args=(client_socket,))
+t.start()
+t.join()
