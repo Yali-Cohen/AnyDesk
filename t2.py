@@ -1,4 +1,5 @@
 #client.py, controller
+import json
 import time
 from client1 import Client
 from pynput.mouse import Button
@@ -31,11 +32,12 @@ def mouse_event_to_dict(ev: MouseEvent) -> dict:
     else:
         d["button"] = None
     return d
-def handle_mouse():
+def handle_mouse(client_socket):
     inputCapture = InputCapture()
     def handle_event(ev: MouseEvent):
         print(ev)
-        
+        dic = mouse_event_to_dict(ev)
+        client_socket.send(json.dumps(dic).encode('utf-8'))
 
     cap = InputCapture(on_event=handle_event, move_hz=60, debug_print=False)
     cap.start()
@@ -49,5 +51,5 @@ def handle_mouse():
     finally:
         cap.stop()
         print("Bye.")
-t = Thread(target=handle_mouse)
+t = Thread(target=handle_mouse, args=(c,))
 t.start()
