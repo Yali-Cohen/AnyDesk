@@ -35,9 +35,10 @@ def mouse_event_to_dict(ev: MouseEvent) -> dict:
 def handle_mouse(client_socket):
     inputCapture = InputCapture()
     def handle_event(ev: MouseEvent):
-        print(ev)
         dic = mouse_event_to_dict(ev)
-        client_socket.send(json.dumps(dic).encode('utf-8'))
+        msg = json.dumps(dic) + "\n"
+        client_socket.send(msg.encode("utf-8"))
+
 
     cap = InputCapture(on_event=handle_event, move_hz=60, debug_print=False)
     cap.start()

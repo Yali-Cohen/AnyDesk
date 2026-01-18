@@ -30,30 +30,65 @@ def dict_to_mouse_event(d: dict) -> MouseEvent:
         dx=d.get("dx"),
         dy=d.get("dy"),
     )
+def set_pos(x, y):
+    # אם InputController שלך הוא wrapper עם controller בפנים
+    if hasattr(mouse_ctl, "controller"):
+        mouse_ctl.controller.position = (x, y)
+    elif hasattr(mouse_ctl, "mouse"):
+        mouse_ctl.mouse.position = (x, y)
+    else:
+        # אם הוא ממש pynput Controller עצמו
+        mouse_ctl.position = (x, y)
+
 def apply_mouse_event(ev: MouseEvent):
     if ev.type == "move":
-        mouse_ctl.position = (ev.x, ev.y)
+        set_pos(ev.x, ev.y)
+
     elif ev.type == "click":
+        set_pos(ev.x, ev.y)
+        if ev.button is None:
+            return
         if ev.pressed:
-            mouse_ctl.press(ev.button)
+            mouse_ctl.press(ev.button) if hasattr(mouse_ctl, "press") else mouse_ctl.controller.press(ev.button)
         else:
-            mouse_ctl.release(ev.button)
+            mouse_ctl.release(ev.button) if hasattr(mouse_ctl, "release") else mouse_ctl.controller.release(ev.button)
 
     elif ev.type == "scroll":
-        mouse_ctl.position = (ev.x, ev.y)
-        mouse_ctl.scroll(ev.dx or 0, ev.dy or 0)
+        set_pos(ev.x, ev.y)
+        dx = ev.dx or 0
+        dy = ev.dy or 0
+        if hasattr(mouse_ctl, "scroll"):
+            mouse_ctl.scroll(dx, dy)
+        else:
+            mouse_ctl.controller.scroll(dx, dy)
+
 def data_to_ev(data):
     data_json = json.loads(data)
     print(data_json)
     return dict_to_mouse_event(data_json)
+
 def handle_mouse(sock):
+    buffer = ""
     while True:
-        data = sock.recv(1024).decode()
-        if data:
-            ev = data_to_ev(data)
-            print("EV", ev)
+        chunk = sock.recv(4096).decode("utf-8", errors="ignore")
+        if not chunk:
+            print("Client disconnected.")
+            break
+        buffer += chunk
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data_json = json.loads(line)
+            except json.JSONDecodeError as e:
+                print("Bad JSON:", e, "LINE:", line[:200])
+                continue
+            ev = dict_to_mouse_event(data_json)
+            print("EV:", ev)
             apply_mouse_event(ev)
-s = Server(port=1234)
+s =Server(port=1234)
 client_socket = s.accept_connection()
 client_socket.send(b"Hello from server")
 print(client_socket.recv(1024).decode())
