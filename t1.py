@@ -8,7 +8,17 @@ from pynput.mouse import Button
 from input_capture import MouseEvent
 from input_controller import InputController
 mouse_ctl = InputController()
+from pynput.mouse import Controller as PynputMouseController
 
+def get_mouse_controller(obj):
+    if hasattr(obj, "controller"):
+        return obj.controller
+    if hasattr(obj, "mouse"):
+        return obj.mouse
+    if hasattr(obj, "position") and hasattr(obj, "scroll") and hasattr(obj, "press"):
+        return obj
+
+    return PynputMouseController()
 def dict_to_mouse_event(d: dict) -> MouseEvent:
     b = d.get("button")
     if b == "left":
@@ -31,36 +41,31 @@ def dict_to_mouse_event(d: dict) -> MouseEvent:
         dy=d.get("dy"),
     )
 def set_pos(x, y):
-    # אם InputController שלך הוא wrapper עם controller בפנים
     if hasattr(mouse_ctl, "controller"):
         mouse_ctl.controller.position = (x, y)
     elif hasattr(mouse_ctl, "mouse"):
         mouse_ctl.mouse.position = (x, y)
     else:
-        # אם הוא ממש pynput Controller עצמו
         mouse_ctl.position = (x, y)
 
 def apply_mouse_event(ev: MouseEvent):
+    ctl = get_mouse_controller(mouse_ctl)
+
     if ev.type == "move":
-        set_pos(ev.x, ev.y)
+        ctl.position = (ev.x, ev.y)
 
     elif ev.type == "click":
-        set_pos(ev.x, ev.y)
+        ctl.position = (ev.x, ev.y)
         if ev.button is None:
             return
         if ev.pressed:
-            mouse_ctl.press(ev.button) if hasattr(mouse_ctl, "press") else mouse_ctl.controller.press(ev.button)
+            ctl.press(ev.button)
         else:
-            mouse_ctl.release(ev.button) if hasattr(mouse_ctl, "release") else mouse_ctl.controller.release(ev.button)
+            ctl.release(ev.button)
 
     elif ev.type == "scroll":
-        set_pos(ev.x, ev.y)
-        dx = ev.dx or 0
-        dy = ev.dy or 0
-        if hasattr(mouse_ctl, "scroll"):
-            mouse_ctl.scroll(dx, dy)
-        else:
-            mouse_ctl.controller.scroll(dx, dy)
+        ctl.position = (ev.x, ev.y)
+        ctl.scroll(ev.dx or 0, ev.dy or 0)
 
 def data_to_ev(data):
     data_json = json.loads(data)

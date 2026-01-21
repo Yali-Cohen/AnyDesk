@@ -33,7 +33,6 @@ def mouse_event_to_dict(ev: MouseEvent) -> dict:
         d["button"] = None
     return d
 def handle_mouse(client_socket):
-    inputCapture = InputCapture()
     def handle_event(ev: MouseEvent):
         dic = mouse_event_to_dict(ev)
         msg = json.dumps(dic) + "\n"
