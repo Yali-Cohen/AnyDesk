@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
         client_mouse_socket = server_mouse_connection.accept_connection()
         client_keyboard_socket = server_keyboard_connection.accept_connection()
         client_screen_socket = server_screen_connection.accept_connection()
-        mouse_receiver = MouseSender(client_mouse_socket)
+        mouse_receiver = MouseReceiver(client_mouse_socket)
         mouse_receiver.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
