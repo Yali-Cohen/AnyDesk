@@ -8,6 +8,9 @@ from register import Register
 from login import Login
 from server1 import Server
 from socket_listener import SocketListener
+from channels.mouse_sender import MouseSender
+from channels.mouse_receiver import MouseReceiver
+
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -29,7 +32,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("192.168.2.16", 8080)
+            self.client.connect("192.168.1.228", 8080)
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -91,6 +94,8 @@ class MainWindow(QMainWindow):
         client_mouse_socket = server_mouse_connection.accept_connection()
         client_keyboard_socket = server_keyboard_connection.accept_connection()
         client_screen_socket = server_screen_connection.accept_connection()
+        mouse_receiver = MouseSender(client_mouse_socket)
+        mouse_receiver.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
         msg = json.loads(payload.decode("utf-8"))
@@ -104,11 +109,17 @@ class MainWindow(QMainWindow):
         print(ip)
         mouse_client = Client()
         mouse_client.connect(ip, mouse_port)
+        mouse_client_socket = mouse_client.get_socket()
         
+        mouse_sender = MouseSender(mouse_client_socket)
+        mouse_sender.start()
+
         keyboard_client = Client()
         keyboard_client.connect(ip,keyboard_port)
         screen_client = Client()
         screen_client.connect(ip, screen_port)
+
+
     def handle_server_message(self, msg:dict):
         action = msg.get("action")
         data = msg.get("data", {})
