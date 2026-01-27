@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("192.168.1.228", 8080)
+            self.client.connect("10.0.0.39", 8080)
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
