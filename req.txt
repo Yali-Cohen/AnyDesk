@@ -3,3 +3,5 @@ pyautogui
 PySide6
 pynput
 mss
+numpy
+opencv-python
