@@ -3,6 +3,9 @@ import struct
 
 import cv2
 import numpy as np
+    
+BUFFER_SIZE = 65565
+
 def recv_exact(sock, n):
     data = b""
     while len(data) < n:

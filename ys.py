@@ -31,7 +31,7 @@ import socket
 from threading import Thread
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(("192.168.2.16", 1010))
-    
+
 def send_frame_jpeg(sock, frame_bgr, quality=70):
     ok, enc = cv2.imencode(".jpg", frame_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
