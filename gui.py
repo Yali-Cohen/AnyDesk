@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         try:
-            print("Connecting to server..")
+            print("Connecting to server...")
             self.client.connect("192.168.2.16", 8080)
             print("Connected to server.")
         except Exception as e:
