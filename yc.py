@@ -7,18 +7,28 @@ import numpy as np
     
 BUFFER_SIZE = 65535
 
-def recv_exact(sock, n):
+# def recv_exact(sock, n):
+#     data = b""
+#     while len(data) < n:
+#         chunk, addr = sock.recvfrom(n - len(data))
+#         if not chunk:
+#             raise ConnectionError("socket closed")
+#         data += chunk
+#     return data
+def recv_exact(sock):
+    flag = True
     data = b""
-    while len(data) < n:
-        chunk, addr = sock.recvfrom(n - len(data))
-        if not chunk:
-            raise ConnectionError("socket closed")
+    while flag:
+        chunk, addr = sock.recvfrom(10000)
         data += chunk
+        if "IEND" in data:
+            flag = False
     return data
 def perform_frame(frame):
     cv2.imshow("ANYDESK", frame)
 def recv_frame_jpeg(sock):
     size = struct.unpack("!I", recv_exact(sock, 4))[0]
+    print(size)
     data = recv_exact(sock, size)
     print(data)
     arr = np.frombuffer(data, dtype=np.uint8)
