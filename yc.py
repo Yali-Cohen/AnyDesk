@@ -35,7 +35,7 @@ def recv_frame_jpeg(sock):
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)  # יוצא BGR
     return frame
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.sendto(b"Hi", ("192.168.2.16", 1010))
+sock.sendto(b"Hi", ("10.0.0.30", 1010))
 while True:
     frame = recv_frame_jpeg(sock)
     print(frame)

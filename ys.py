@@ -30,14 +30,27 @@ import struct
 import socket 
 from threading import Thread
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("192.168.2.16", 1010))
+sock.bind(("10.0.0.30", 1010))
 
 def send_frame_jpeg(sock, frame_bgr, quality=70):
     ok, enc = cv2.imencode(".jpg", frame_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return
-    data = enc.tobytes()
-    sock.sendall(struct.pack("!I", len(data)) + data)
+    jpg_bytes = enc.tobytes()
+    CHUNK = 1200  # טיפוסית סביב MTU (לא חובה, אבל הגיוני)
+    chunks = [jpg_bytes[i:i+CHUNK] for i in range(0, len(jpg_bytes), CHUNK)]
+    print(chunks)
+    frame_id = np.uint32(time.time() * 1000)  # מזהה ייחודי לכל פריים
+    for chunk in chunks:
+        payload = {
+            "frame_id": frame_id,
+            "chunck_index": np.uint16(chunks.index(chunk)),
+            "total_chunks": np.uint16(len(chunks)),
+        }
+        header_bytes = struct.pack("!IHH", payload["frame_id"], payload["chunck_index"], payload["total_chunks"])
+        packet = header_bytes + chunk
+        sock.sendto(packet, ("10.0.0.20", 1011))
+
 def capture_screen(sock):
     frames = 0
     t0 = time.perf_counter()
