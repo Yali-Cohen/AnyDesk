@@ -65,9 +65,9 @@ def capture_screen(sock):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR) # Convert BGRA to BGR
             send_frame_jpeg(sock, frame, frame_id=frame_id_counter)
             # Display the frame in a window
-            cv2.imshow("MSS Streaming", frame)
+            # cv2.imshow("MSS Streaming", frame)
             frames += 1
-            frame_id_counter = 0
+            frame_id_counter += 1
             t1 = time.perf_counter()
             if t1 - t0 >= 1.0:
                 print("FPS:", frames/(t1-t0))
