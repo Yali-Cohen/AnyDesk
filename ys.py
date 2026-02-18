@@ -30,29 +30,29 @@ import struct
 import socket 
 from threading import Thread
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("10.0.0.30", 1010))
+sock.bind(("192.168.2.16", 1010))
 
-def send_frame_jpeg(sock, frame_bgr, quality=70):
+def send_frame_jpeg(sock, frame_bgr,frame_id, quality=70):
     ok, enc = cv2.imencode(".jpg", frame_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return
     jpg_bytes = enc.tobytes()
     CHUNK = 1200  # טיפוסית סביב MTU (לא חובה, אבל הגיוני)
     chunks = [jpg_bytes[i:i+CHUNK] for i in range(0, len(jpg_bytes), CHUNK)]
-    print(chunks)
-    frame_id = np.uint32(time.time() * 1000)  # מזהה ייחודי לכל פריים
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
+        chunk_id = i
         payload = {
             "frame_id": frame_id,
-            "chunck_index": np.uint16(chunks.index(chunk)),
-            "total_chunks": np.uint16(len(chunks)),
+            "chunk_index": chunk_id,
+            "total_chunks": len(chunks),
         }
-        header_bytes = struct.pack("!IHH", payload["frame_id"], payload["chunck_index"], payload["total_chunks"])
+        header_bytes = struct.pack("!IHH", payload["frame_id"], payload["chunk_index"], payload["total_chunks"])
         packet = header_bytes + chunk
-        sock.sendto(packet, ("10.0.0.20", 1011))
+        sock.sendto(packet, ("192.168.1.228", 1011))
 
 def capture_screen(sock):
     frames = 0
+    frame_id_counter = 0
     t0 = time.perf_counter()
     with mss() as sct:
         mon = sct.monitors[1]
@@ -60,25 +60,14 @@ def capture_screen(sock):
         while True:
             # Grab the screen data
             sct_img = sct.grab(half)
-
             # Convert the raw pixels to a NumPy array and then to BGR format for OpenCV
             frame = np.array(sct_img)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR) # Convert BGRA to BGR
-            print(frame)
-            send_frame_jpeg(sock, frame)
-            # bgr_image_np = cv2.imread(frame)
-
-            # # Check if the image was loaded correctly
-            # if bgr_image_np is None:
-            #     print("Error loading image")
-            # else:
-            #     # 2. Convert the NumPy array to a bytes object
-            #     # This creates a contiguous stream of B, G, R, B, G, R... bytes
-            #     image_bytes = bgr_image_np.tobytes()
-            #     print(image_bytes)
+            send_frame_jpeg(sock, frame, frame_id=frame_id_counter)
             # Display the frame in a window
             cv2.imshow("MSS Streaming", frame)
             frames += 1
+            frame_id_counter = 0
             t1 = time.perf_counter()
             if t1 - t0 >= 1.0:
                 print("FPS:", frames/(t1-t0))
