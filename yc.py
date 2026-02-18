@@ -21,5 +21,5 @@ sock.sendto(b"Hi", ("192.168.2.16", 1011))
 while True:
     frame = recv_frame_jpeg(sock)
     time.sleep(2)
-    print(frame)
+    # print(frame)
     perform_frame(frame)

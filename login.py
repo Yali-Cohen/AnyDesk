@@ -10,7 +10,7 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 from PySide6.QtCore import QSize, Qt, QRegularExpression
 from PySide6.QtGui import QIcon,QGuiApplication, QFont, QRegularExpressionValidator
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox, QWidgetAction
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # בונה נתיב יחסי לתיקיית Images
@@ -43,13 +43,24 @@ class Login(QWidget):
         self.input_password.setEchoMode(QLineEdit.Password)
         self.layout.addWidget(self.input_password, 2, 1)
         
+        self.visible_hidden = QPushButton("Visible/Hidden")
+        self.layout.addWidget(self.visible_hidden, 3, 0)
+        self.visible_hidden.clicked.connect(self.visible_hidden_func)
+
         login_button = QPushButton("Login")
-        self.layout.addWidget(login_button, 3, 1)
+        self.layout.addWidget(login_button, 4, 1)
         login_button.clicked.connect(self.login_user)
         
         cancel_button = QPushButton("Cancel")
-        self.layout.addWidget(cancel_button, 3, 0)
+        self.layout.addWidget(cancel_button, 4, 0)
         cancel_button.clicked.connect(self.close)
+
+    def visible_hidden_func(self):
+        if self.input_password.echoMode() == QLineEdit.Normal:
+            self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
+        else:
+            self.input_password.setEchoMode(QLineEdit.EchoMode.Normal)
+
     def input_validity_tests(self):
         if not self.input_user_email.text().strip() or not self.input_password.text():
             QMessageBox.warning(self, "Missing", "Please fill all the fields!"); return True

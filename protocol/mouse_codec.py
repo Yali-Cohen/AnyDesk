@@ -1,4 +1,4 @@
-# protocol/mouse_codec.py
+# protocol/mouse_codec.py, convert types
 from pynput.mouse import Button
 from input_capture import MouseEvent
 

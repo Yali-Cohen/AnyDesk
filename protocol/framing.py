@@ -1,4 +1,4 @@
-# protocol/framing.py
+# protocol/framing.py, how the send, recv will work. with json ending with \n
 import json
 
 def send_json_line(sock, obj: dict):

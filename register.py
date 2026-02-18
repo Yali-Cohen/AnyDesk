@@ -54,13 +54,31 @@ class Register(QWidget):
         self.confirmed_password.setEchoMode(QLineEdit.Password)
         self.layout.addWidget(self.confirmed_password, 4, 1)
         
+        self.visible_hidden_password = QPushButton("Visible/Hidden")
+        self.layout.addWidget(self.visible_hidden_password, 5, 0)
+        self.visible_hidden_password.clicked.connect(self.visible_hidden_func)
+        
+        self.visible_hidden_confirmed_password = QPushButton("Visible/Hidden")
+        self.layout.addWidget(self.visible_hidden_confirmed_password, 6, 0)
+        self.visible_hidden_confirmed_password.clicked.connect(self.visible_hidden_confirmed_func)
+
         register_button = QPushButton("Register")
-        self.layout.addWidget(register_button, 5, 1)
+        self.layout.addWidget(register_button, 7, 1)
         register_button.clicked.connect(self.register_user)
         
         cancel_button = QPushButton("Cancel")
-        self.layout.addWidget(cancel_button, 5, 0)
+        self.layout.addWidget(cancel_button, 7, 0)
         cancel_button.clicked.connect(self.close)
+    def visible_hidden_func(self):
+        if self.input_password.echoMode() == QLineEdit.Normal:
+            self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
+        else:
+            self.input_password.setEchoMode(QLineEdit.EchoMode.Normal)
+    def visible_hidden_confirmed_func(self):
+        if self.confirmed_password.echoMode() == QLineEdit.Normal:
+            self.confirmed_password.setEchoMode(QLineEdit.EchoMode.Password)
+        else:
+            self.confirmed_password.setEchoMode(QLineEdit.EchoMode.Normal)
     def input_validity_tests(self):
         if not self.input_username.text().strip() or not self.input_email.text().strip() or not self.input_password.text() or not self.confirmed_password.text():
             QMessageBox.warning(self, "Missing", "Please fill all the fields!"); return True

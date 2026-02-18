@@ -1,3 +1,4 @@
+#input_controller.py
 from pynput.mouse import Button, Controller
 
 class InputController:
