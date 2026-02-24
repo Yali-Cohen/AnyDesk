@@ -4,7 +4,7 @@ import time
 
 import cv2
 import numpy as np
-    
+
 BUFFER_SIZE = 2048
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(("10.0.0.39", 9999))
