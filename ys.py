@@ -1,27 +1,3 @@
-# import time
-# import cv2
-# from mss import mss
-# import numpy as np
-
-# frames = 0
-# t0 = time.perf_counter()
-
-# with mss() as sct:
-#     mon = sct.monitors[1]
-#     print(mon["width"], mon["height"])
-#     half = {"top": 0, "left": 0, "width": mon["width"]//2, "height": mon["height"]//2}
-
-#     while True:
-#         sct_img = sct.grab(half)
-#         img = np.array(sct_img)
-#         img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-#         cv2.imshow("Screen Capture", img_bgr)
-#         frames += 1
-#         t1 = time.perf_counter()
-#         if t1 - t0 >= 1.0:
-#             print("FPS:", frames/(t1-t0))
-#             frames = 0
-#             t0 = t1
 import cv2
 import numpy as np
 from mss import mss
@@ -30,14 +6,13 @@ import struct
 import socket 
 from threading import Thread
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("192.168.2.16", 1010))
 
 def send_frame_jpeg(sock, frame_bgr,frame_id, quality=70):
     ok, enc = cv2.imencode(".jpg", frame_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return
     jpg_bytes = enc.tobytes()
-    CHUNK = 1200  # טיפוסית סביב MTU (לא חובה, אבל הגיוני)
+    CHUNK = 1200  
     chunks = [jpg_bytes[i:i+CHUNK] for i in range(0, len(jpg_bytes), CHUNK)]
     for i, chunk in enumerate(chunks):
         chunk_id = i
@@ -48,7 +23,7 @@ def send_frame_jpeg(sock, frame_bgr,frame_id, quality=70):
         }
         header_bytes = struct.pack("!IHH", payload["frame_id"], payload["chunk_index"], payload["total_chunks"])
         packet = header_bytes + chunk
-        sock.sendto(packet, ("192.168.1.228", 1011))
+        sock.sendto(packet, ("10.0.0.39", 9999))
 
 def capture_screen(sock):
     frames = 0
@@ -64,8 +39,6 @@ def capture_screen(sock):
             frame = np.array(sct_img)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR) # Convert BGRA to BGR
             send_frame_jpeg(sock, frame, frame_id=frame_id_counter)
-            # Display the frame in a window
-            # cv2.imshow("MSS Streaming", frame)
             frames += 1
             frame_id_counter += 1
             t1 = time.perf_counter()
