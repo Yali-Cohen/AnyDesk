@@ -30,11 +30,11 @@ def capture_screen(sock):
     frame_id_counter = 0
     t0 = time.perf_counter()
     with mss() as sct:
-        mon = sct.monitors[1]
-        half = {"top": 0, "left": 0, "width": mon["width"]//2, "height": mon["height"]//2}
+        mon = sct.monitors[0]
+        # half = {"top": 0, "left": 0, "width": mon["width"]//2, "height": mon["height"]//2}
         while True:
             # Grab the screen data
-            sct_img = sct.grab(half)
+            sct_img = sct.grab(mon)
             # Convert the raw pixels to a NumPy array and then to BGR format for OpenCV
             frame = np.array(sct_img)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR) # Convert BGRA to BGR
