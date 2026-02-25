@@ -12,8 +12,14 @@ sock.bind(("192.168.2.16", 9999))
 
 def perform_frame(frame):
     cv2.imshow("ANYDESK", frame)
+    t1 = time.perf_counter()
+    if t1 - t0 >= 1.0:
+        print("FPS:", frames_counter/(t1-t0))
+        frames_counter = 0
+        t0 = t1
     cv2.waitKey(1)
 def recv_frame_jpeg(sock, frames):
+    frames_counter += 1
     bytes_data, addr = sock.recvfrom(BUFFER_SIZE)
     header_bytes = bytes_data[:8]
     frame_id, chunk_index, total_chunks = struct.unpack("!IHH", header_bytes)
@@ -33,6 +39,6 @@ def recv_frame_jpeg(sock, frames):
         del frames[frame_id]  # ניקוי הזיכרון
     
 frames = {} # frame_id -> frame_state
-
+frames_counter = 0
 while True:
     recv_frame_jpeg(sock, frames)    

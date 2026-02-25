@@ -14,7 +14,7 @@ connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
 pending_requests = {}  # request_id -> (controller_socket, target_socket)
 active_sessions = {}  # session_id -> (controller_socket, target_socket)
-lock = threading.Lock()
+lock = threading.Lock() 
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
         with open(KEY_FILE, "rb") as f:
