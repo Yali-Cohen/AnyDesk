@@ -34,7 +34,6 @@ def capture_screen(sock):
     with mss() as sct:
         mon = sct.monitors[1]
         print(mon["width"],mon["height"])
-        # half = {"top": 0, "left": 0, "width": mon["width"]//2, "height": mon["height"]//2}
         while True:
             # Grab the screen data
             sct_img = sct.grab(mon)

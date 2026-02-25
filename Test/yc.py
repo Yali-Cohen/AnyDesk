@@ -39,10 +39,11 @@ while True:
     chunk_data = bytes_data[8:]
 
     if frame_id not in frames:
-        frames[frame_id] = {"total_chunks": total_chunks, "chunks": {}}
+        frames[frame_id] = {"total_chunks": total_chunks, "chunks": {}, "last_seen": time.perf_counter()}
 
     frames[frame_id]["chunks"][chunk_index] = chunk_data
-
+    frames[frame_id]["last_seen"] = time.perf_counter()
+    print(frames[frame_id]["last_seen"])
     expected = frames[frame_id]["total_chunks"]
     if len(frames[frame_id]["chunks"]) == expected:
         # Ensure no missing indices (UDP can drop/reorder)
