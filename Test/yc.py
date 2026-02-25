@@ -28,9 +28,12 @@ def perform_frame(frame):
         print("Client REAL FPS:", round(fps, 2))
         shown_frames = 0
         t0 = t1
-
+TIMEOUT = 0.3
+dropped_by_timeout = 0
+packets_count = 0
 while True:
     bytes_data, addr = sock.recvfrom(BUFFER_SIZE)
+    packets_count += 1
     if len(bytes_data) < 8:
         continue
 
@@ -43,9 +46,21 @@ while True:
 
     frames[frame_id]["chunks"][chunk_index] = chunk_data
     frames[frame_id]["last_seen"] = time.perf_counter()
-    print(frames[frame_id]["last_seen"])
     expected = frames[frame_id]["total_chunks"]
-    if len(frames[frame_id]["chunks"]) == expected:
+    
+    if packets_count == 100:
+        frame_ids = []
+        now = time.perf_counter()
+        for frame_id in list(frames.keys()):
+            last_seen = frames[frame_id]["last_seen"]
+            if now - last_seen > TIMEOUT:
+                frame_ids.append(frame_id)
+        packets_count = 0
+        for frame_id in frame_ids:
+            del frames[frame_id]
+            dropped_by_timeout += 1 
+    
+    elif len(frames[frame_id]["chunks"]) == expected:
         # Ensure no missing indices (UDP can drop/reorder)
         if set(frames[frame_id]["chunks"].keys()) == set(range(expected)):
             jpg_bytes = b"".join(frames[frame_id]["chunks"][i] for i in range(expected))
@@ -53,5 +68,5 @@ while True:
             frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if frame is not None:
                 perform_frame(frame)
-
         del frames[frame_id]
+    print(dropped_by_timeout)
