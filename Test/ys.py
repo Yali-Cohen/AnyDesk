@@ -23,7 +23,7 @@ def send_frame_jpeg(sock, frame_bgr,frame_id, quality=70):
         }
         header_bytes = struct.pack("!IHH", payload["frame_id"], payload["chunk_index"], payload["total_chunks"])
         packet = header_bytes + chunk
-        sock.sendto(packet, ("10.0.0.39", 9999))
+        sock.sendto(packet, ("192.168.2.16", 9999))
 
 def capture_screen(sock):
     frames = 0
