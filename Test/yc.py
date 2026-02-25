@@ -7,7 +7,7 @@ import numpy as np
 
 BUFFER_SIZE = 2048
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("192.168.1.228", 9999))
+sock.bind(("192.168.2.16", 9999))
 
 
 def perform_frame(frame):
