@@ -11,6 +11,7 @@ sock.bind(("192.168.1.228", 9999))
 
 
 def perform_frame(frame, frames_counter):
+    global t0
     cv2.imshow("ANYDESK", frame)
     t1 = time.perf_counter()
     if t1 - t0 >= 1.0:
@@ -19,6 +20,7 @@ def perform_frame(frame, frames_counter):
         t0 = t1
     cv2.waitKey(1)
 def recv_frame_jpeg(sock, frames, frames_counter):
+    
     frames_counter += 1
     bytes_data, addr = sock.recvfrom(BUFFER_SIZE)
     header_bytes = bytes_data[:8]
@@ -40,5 +42,7 @@ def recv_frame_jpeg(sock, frames, frames_counter):
     
 frames = {} # frame_id -> frame_state
 frames_counter = 0
+t0 = time.perf_counter()
+
 while True:
     recv_frame_jpeg(sock, frames, frames_counter)    
