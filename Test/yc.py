@@ -10,7 +10,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(("192.168.1.228", 9999))
 
 
-def perform_frame(frame):
+def perform_frame(frame, frames_counter):
     cv2.imshow("ANYDESK", frame)
     t1 = time.perf_counter()
     if t1 - t0 >= 1.0:
@@ -18,7 +18,7 @@ def perform_frame(frame):
         frames_counter = 0
         t0 = t1
     cv2.waitKey(1)
-def recv_frame_jpeg(sock, frames):
+def recv_frame_jpeg(sock, frames, frames_counter):
     frames_counter += 1
     bytes_data, addr = sock.recvfrom(BUFFER_SIZE)
     header_bytes = bytes_data[:8]
@@ -35,10 +35,10 @@ def recv_frame_jpeg(sock, frames):
         jpg_bytes = b"".join(frames[frame_id]["chunks"][i] for i in range(total_chunks))
         arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)  # יוצא BGR
-        perform_frame(frame)
+        perform_frame(frame, frames_counter)
         del frames[frame_id]  # ניקוי הזיכרון
     
 frames = {} # frame_id -> frame_state
 frames_counter = 0
 while True:
-    recv_frame_jpeg(sock, frames)    
+    recv_frame_jpeg(sock, frames, frames_counter)    
