@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("10.0.0.30", 8080)#192.168.1.228 , 192.168.2.16
+            self.client.connect("192.168.2.16", 8080)#192.168.1.228 , 192.168.2.16
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -225,6 +225,7 @@ class MainWindow(QMainWindow):
         return
 # ==================================================================
     def logout_action(self):
+        print("LOGOUT    => ", self.current_user)
         self.send_logout_data(self.current_user)
         self.is_authenticated = False
         self.current_user = {}
@@ -235,6 +236,9 @@ class MainWindow(QMainWindow):
             self.address_label.deleteLater()
         if self.socket_listener:
             self.socket_listener.stop()
+        if hasattr(self, "remote_box"):
+            self.remote_box.deleteLater()
+
     def send_logout_data(self, logout_data):
         payload = {
                 "action": "logout",
@@ -258,11 +262,11 @@ class MainWindow(QMainWindow):
         is_valid = self.validate_address(addr)
         self.connect_btn.setEnabled(is_valid)
     def connect_to_remote(self):
-        remote_address = self.normalize_address(self.remote_input.text())
-        if not self.validate_address(remote_address):
+        self.remote_address = self.normalize_address(self.remote_input.text())
+        if not self.validate_address(self.remote_address):
             QMessageBox.warning(self, "Invalid Address", "Please enter a valid remote address (6-15 digits).")
             return
-        QMessageBox.information(self, "Connecting", f"Attempting to connect to {remote_address}...")
+        QMessageBox.information(self, "Connecting", f"Attempting to connect to {self.remote_address}...")
         from_address = self.current_user.get("address", "")
         email = self.current_user.get("email", "")
         username = self.current_user.get("username", "")
@@ -270,7 +274,7 @@ class MainWindow(QMainWindow):
             "from_email": email,
             "from_username": username,
             "from_address": from_address,
-            "target_address": remote_address
+            "target_address": self.remote_address
         }
         payload = {
             "action": "connect_request",

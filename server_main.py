@@ -163,6 +163,7 @@ def handle_client(server: Server, client_socket):
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "logout":
+            user_email = payload.get("email")
             with lock:
                 if not user_email:
                     response = {"status": "error", "message": "Email missing."}
@@ -172,10 +173,7 @@ def handle_client(server: Server, client_socket):
                     connected_users.pop(user_email, None)
                     if address:
                         connected_by_address.pop(address, None)
-                        
-
                     response = {"status": "success", "message": "Logged out."}
-
             client_socket.send(json.dumps(response).encode('utf-8'))
         
         elif action == "connect_request":
