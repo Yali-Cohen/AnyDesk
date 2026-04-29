@@ -61,6 +61,7 @@ class MainWindow(QMainWindow):
         self.login_menu.triggered.connect(self.login_action)
         self.log_out_menu = register_login_logout_menu.addAction("Log Out")
         self.log_out_menu.triggered.connect(self.logout_action)
+        self.log_out_menu.setVisible(False)
         self.layout.addWidget(label)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
