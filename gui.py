@@ -55,12 +55,12 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         arrow_icon = QIcon(ARROW_PATH)
         register_login_logout_menu = menubar.addMenu(arrow_icon, "down")
-        register_menu = register_login_logout_menu.addAction("Register")
-        register_menu.triggered.connect(self.register_action)
-        login_menu = register_login_logout_menu.addAction("Login")
-        login_menu.triggered.connect(self.login_action)
-        log_out_menu = register_login_logout_menu.addAction("Log Out")
-        log_out_menu.triggered.connect(self.logout_action)
+        self.register_menu = register_login_logout_menu.addAction("Register")
+        self.register_menu.triggered.connect(self.register_action)
+        self.login_menu = register_login_logout_menu.addAction("Login")
+        self.login_menu.triggered.connect(self.login_action)
+        self.log_out_menu = register_login_logout_menu.addAction("Log Out")
+        self.log_out_menu.triggered.connect(self.logout_action)
         self.layout.addWidget(label)
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -183,6 +183,10 @@ class MainWindow(QMainWindow):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
             self.remote_box.show()
+            if hasattr(self, "register_menu"):
+                self.register_menu.deleteLater()
+            if hasattr(self, "login_menu"):
+                self.login_menu.deleteLater()
             
     def show_authenticated_gui(self):
         if hasattr(self, "address_row"):
@@ -238,6 +242,8 @@ class MainWindow(QMainWindow):
             self.socket_listener.stop()
         if hasattr(self, "remote_box"):
             self.remote_box.deleteLater()
+        if hasattr(self, "log_out_menu"):
+            self.log_out_menu.deleteLater()
 
     def send_logout_data(self, logout_data):
         payload = {
