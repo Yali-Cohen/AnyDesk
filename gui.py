@@ -184,16 +184,16 @@ class MainWindow(QMainWindow):
             self.show_authenticated_gui()
             self.remote_box.show()
             if hasattr(self, "register_menu"):
-                self.register_menu.deleteLater()
+                self.register_menu.setVisible(False)
             if hasattr(self, "login_menu"):
-                self.login_menu.deleteLater()
-            
+                self.login_menu.setVisible(False)
+            if hasattr(self, "log_out_menu"):
+                self.log_out_menu.setVisible(True)
     def show_authenticated_gui(self):
         if hasattr(self, "address_row"):
             self.address_label.setText(self.current_user.get("address", "Unknown"))
-            self.address_row.show()
+            self.address_row.show()  # ← מציג מחדש אם כבר קיים
             return
-
         self.address_row = QWidget()
         row = QHBoxLayout(self.address_row)
         row.setContentsMargins(0, 0, 0, 0)
@@ -222,7 +222,8 @@ class MainWindow(QMainWindow):
         print("STATUS:", self.is_authenticated, self.current_user)
         if not self.is_authenticated or not self.current_user:
             self.status_label.setText("Please register or login to continue.")
-            self.address_row.setDisabled(False)
+            if hasattr(self, "address_row"):  # ← הוסף בדיקה
+                self.address_row.setDisabled(False)
             return
         username = self.current_user.get("username", "User")
         self.status_label.setText(f"Welcome, {username}!")
@@ -234,16 +235,22 @@ class MainWindow(QMainWindow):
         self.is_authenticated = False
         self.current_user = {}
         self.update_status_label()
-        if hasattr(self, "key_label"):
-            self.key_label.deleteLater()
-        if hasattr(self, "address_label"):
-            self.address_label.deleteLater()
-        if self.socket_listener:
+
+        if hasattr(self, "address_row"):
+            self.address_row.hide()  # מסתיר במקום למחוק
+
+        if hasattr(self, "socket_listener"):
             self.socket_listener.stop()
+
         if hasattr(self, "remote_box"):
-            self.remote_box.deleteLater()
+            self.remote_box.hide()  # מסתיר במקום למחוק
+
         if hasattr(self, "log_out_menu"):
-            self.log_out_menu.deleteLater()
+            self.log_out_menu.setVisible(False)
+        if hasattr(self, "register_menu"):
+            self.register_menu.setVisible(True)
+        if hasattr(self, "login_menu"):
+            self.login_menu.setVisible(True)
 
     def send_logout_data(self, logout_data):
         payload = {

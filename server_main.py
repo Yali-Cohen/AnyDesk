@@ -93,14 +93,10 @@ def handle_client(server: Server, client_socket):
             print("Client disconnected.")
             if client_socket in connected_users.values():
                 with lock:
-                    for email, sock in list(connected_users.items()):
+                    for email, (sock, address) in list(connected_users.items()):
                         if sock == client_socket:
-                            info = get_user_info_from_db(email)
-                            address = info[1] if info else None
                             connected_users.pop(email, None)
-                            if address:
-                                connected_by_address.pop(address, None)
-                            print(f"User {email} disconnected and removed from connected users.")
+                            connected_by_address.pop(address, None)
                             break
             break
 
@@ -128,8 +124,8 @@ def handle_client(server: Server, client_socket):
                     registered_users[user_email] = payload
                     response = {"status": "success",
                                 "message": "Registration successful.",
-                                "Username": payload.get("username")
-                                , "Address": address
+                                "username": payload.get("username")
+                                , "address": address
                                 }
             client_socket.send(json.dumps(response).encode('utf-8'))
 
@@ -151,10 +147,10 @@ def handle_client(server: Server, client_socket):
                         response = {
                             "status": "success",
                             "message": "Login successful.",
-                            "Username": username_db,
-                            "Address": address
+                            "username": username_db,
+                            "address": address
                         }
-                        connected_users[user_email] = client_socket
+                        connected_users[user_email] = (client_socket, address)
                         connected_by_address[address] = client_socket
                     else:
                         response = {"status": "error", "message": "Incorrect password."}
@@ -170,8 +166,8 @@ def handle_client(server: Server, client_socket):
                 else:
                     info = get_user_info_from_db(user_email)
                     address = info[1] if info else None
-                    connected_users.pop(user_email, None)
-                    if address:
+                    if user_email in connected_users:
+                        sock, address = connected_users.pop(user_email)
                         connected_by_address.pop(address, None)
                     response = {"status": "success", "message": "Logged out."}
             client_socket.send(json.dumps(response).encode('utf-8'))
