@@ -92,12 +92,12 @@ class Login(QWidget):
 
             status = response.get("status")
             message = response.get("message", "")
-            username = response.get("Username", "")
+            username = response.get("username", "")
             if status == "success":
                 QMessageBox.information(self, "Success", message or "Login successful.")
                 self.close()
                 self.main_window.is_authenticated = True
-                address = response.get("Address", "")                                                   
+                address = response.get("address", "")                                                   
                 self.main_window.current_user = {
                     "email": login_data["email"]
                     , "username": username
