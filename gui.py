@@ -286,7 +286,7 @@ class MainWindow(QMainWindow):
             "action": "connect_request",
             "data": connect_data
         }
-        print("Connecting with payload:", payload)
+        print(f"Connecting to addr {self.remote_address} with payload:", payload)
         self.client.send_json(payload)
         
     def build_remote_connect_gui(self):
