@@ -75,47 +75,73 @@ class MainWindow(QMainWindow):
     def send_ports_to_full_connection(self, client_socket):
         server_mouse_connection = Server(host="0.0.0.0", port=0)
         mouse_port = server_mouse_connection.port
+
         server_keyboard_connection = Server(host="0.0.0.0", port=0)
         keyboard_port = server_keyboard_connection.port
+
         server_screen_connection = Server(host="0.0.0.0", port=0)
         screen_port = server_screen_connection.port
-        ports = (mouse_port, keyboard_port, screen_port)
+
         ports_payload = {
             "IP": self.ip,
-            "ports": ports
+            "ports": [mouse_port, keyboard_port, screen_port]
         }
-        print(f"Sending to client payload: {ports_payload}")
-        self.client.send_json(ports_payload)
+
+        print(f"Sending to controller payload: {ports_payload}")
+
+        client_socket.sendall((json.dumps(ports_payload) + "\n").encode("utf-8"))
+
+        print("Waiting for mouse connection...")
         client_mouse_socket = server_mouse_connection.accept_connection()
-        client_keyboard_socket = server_keyboard_connection.accept_connection()
-        client_screen_socket = server_screen_connection.accept_connection()
+        print("Mouse connection accepted.")
+
+        # כרגע רק עכבר פעיל
+        # client_keyboard_socket = server_keyboard_connection.accept_connection()
+        # client_screen_socket = server_screen_connection.accept_connection()
+
         mouse_receiver = MouseReceiver(client_mouse_socket)
         mouse_receiver.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
-        msg = json.loads(payload.decode("utf-8"))
-        print(msg)
+        print("Raw ports payload:", payload)
+
+        msg = json.loads(payload.decode("utf-8").strip())
+        print("Decoded ports payload:", msg)
+
         ip = msg.get("IP")
         ports = msg.get("ports")
+
+        if not ip or not ports or len(ports) < 3:
+            print("Invalid ports payload:", msg)
+            return
+
         mouse_port = ports[0]
         keyboard_port = ports[1]
         screen_port = ports[2]
-        print(mouse_port, keyboard_port, screen_port)
-        print(ip)
+
+        print("Mouse port:", mouse_port)
+        print("Keyboard port:", keyboard_port)
+        print("Screen port:", screen_port)
+        print("Target IP:", ip)
+
         mouse_client = Client()
         mouse_client.connect(ip, mouse_port)
         mouse_client_socket = mouse_client.get_socket()
-        
+
+        print("Connected to mouse socket.")
+
         mouse_sender = MouseSender(mouse_client_socket)
         mouse_sender.start()
 
-        keyboard_client = Client()
-        keyboard_client.connect(ip,keyboard_port)
-        screen_client = Client()
-        screen_client.connect(ip, screen_port)
-
+        # כרגע לא מחברים מקלדת ומסך
+        # keyboard_client = Client()
+        # keyboard_client.connect(ip, keyboard_port)
+        #
+        # screen_client = Client()
+        # screen_client.connect(ip, screen_port)
 
     def handle_server_message(self, msg:dict):
+        print("Received message from server:\n", msg)
         action = msg.get("action")
         data = msg.get("data", {})
         if action == "incoming_connection":
@@ -143,12 +169,16 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Result", "Accepted!" if accepted else "Declined."
             )
-        elif action == "connection_established":#Controlled side, Server
+        elif action == "connection_established":  # Controlled side, Server
             print("Connection established, setting up server...")
+
             session_id = data.get("session_id")
+
             self.server_connection = Server(host="0.0.0.0", port=9080)
             self.ip, port = self.server_connection.getsockname()
-            print(f"ip sent to sholet {self.ip}")
+
+            print(f"ip sent to controller {self.ip}")
+
             self.client.send_json({
                 "action": "connection_details",
                 "data": {
@@ -157,28 +187,41 @@ class MainWindow(QMainWindow):
                     "port": port
                 }
             })
-            client_socket = self.server_connection.accept_connection()
-            print(f"Listening for incoming connections on {self.ip}:{port}")
-            data = client_socket.recv(4096)
-            print("Received from client:", data)
-            self.client.send(b"Hello from sholet!")
-            print("Sent greeting to client.")
-            self.send_ports_to_full_connection(client_socket)
 
+            print(f"Listening for incoming connections on {self.ip}:{port}")
+
+            client_socket = self.server_connection.accept_connection()
+            print("Controller connected to controlled side.")
+
+            greeting = client_socket.recv(4096)
+            print("Received from controller:", greeting)
+
+            client_socket.sendall(b"Hello from controlled side!")
+            print("Sent greeting to controller.")
+
+            self.send_ports_to_full_connection(client_socket)
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
+
             ip = data.get("ip")
             port = data.get("port")
+
             QMessageBox.information(
                 self, "Connection Details", f"Connect to IP: {ip}, Port: {port}"
             )
+
             print(f"Connection to {ip}, {port}")
+
             self.client_connection = Client()
             self.client_connection.connect(ip, port)
-            self.client_connection.send(b"Hello from client!")
-            data = self.client_connection.receive()
-            print("Received from sholet:", data.decode('utf-8'))
-            print("Connection established successfully.")
+
+            self.client_connection.send(b"Hello from controller!")
+
+            greeting = self.client_connection.receive()
+            print("Received from controlled side:", greeting.decode("utf-8"))
+
+            print("Main direct connection established successfully.")
+
             self.connect_to_server_sockets()
     def update_gui(self):
         if self.is_authenticated and self.current_user:

@@ -7,7 +7,7 @@ import numpy as np
 
 BUFFER_SIZE = 2048
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(("10.0.0.30", 9999))#sholet
+sock.bind(("192.168.2.16", 9999))#sholet
 
 frames = {}  # frame_id -> {"total_chunks": int, "chunks": dict[int, bytes]}
 shown_frames = 0
