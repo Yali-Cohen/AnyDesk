@@ -116,7 +116,7 @@ class Register(QWidget):
                 QMessageBox.information(self, "Success", response.get("message", "Registration successful."))
                 self.close()
                 self.main_window.is_authenticated = True
-                address = response.get("Address", "")
+                address = response.get("address", "")
                 self.main_window.current_user = {
                     "email": register_data["email"],
                     "username": register_data["username"],

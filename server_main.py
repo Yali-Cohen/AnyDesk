@@ -127,6 +127,8 @@ def handle_client(server: Server, client_socket):
                                 "username": payload.get("username")
                                 , "address": address
                                 }
+                    connected_users[user_email] = (client_socket, address)
+                    connected_by_address[address] = client_socket
             client_socket.send(json.dumps(response).encode('utf-8'))
 
         elif action == "login":
