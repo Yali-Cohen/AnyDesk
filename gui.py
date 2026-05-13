@@ -10,7 +10,8 @@ from server1 import Server
 from socket_listener import SocketListener
 from channels.mouse_sender import MouseSender
 from channels.mouse_receiver import MouseReceiver
-
+from streaming.screen_sender import ScreenSender
+from streaming.screen_receiver import ScreenReceiver
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -32,7 +33,7 @@ class MainWindow(QMainWindow):
         self.current_user = {}
         try:
             print("Connecting to server...")
-            self.client.connect("192.168.2.16", 8080)#192.168.1.228 , 192.168.2.16
+            self.client.connect("10.0.0.30", 8080)#192.168.1.228 , 192.168.2.16
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -75,16 +76,13 @@ class MainWindow(QMainWindow):
     def send_ports_to_full_connection(self, client_socket):
         server_mouse_connection = Server(host="0.0.0.0", port=0)
         mouse_port = server_mouse_connection.port
-
         server_keyboard_connection = Server(host="0.0.0.0", port=0)
         keyboard_port = server_keyboard_connection.port
-
-        server_screen_connection = Server(host="0.0.0.0", port=0)
-        screen_port = server_screen_connection.port
+        controller_ip = client_socket.getpeername()[0]
 
         ports_payload = {
             "IP": self.ip,
-            "ports": [mouse_port, keyboard_port, screen_port]
+            "ports": [mouse_port, keyboard_port]
         }
 
         print(f"Sending to controller payload: {ports_payload}")
@@ -101,6 +99,9 @@ class MainWindow(QMainWindow):
 
         mouse_receiver = MouseReceiver(client_mouse_socket)
         mouse_receiver.start()
+        
+        screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
+        screen_sender.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
         print("Raw ports payload:", payload)
@@ -111,13 +112,13 @@ class MainWindow(QMainWindow):
         ip = msg.get("IP")
         ports = msg.get("ports")
 
-        if not ip or not ports or len(ports) < 3:
-            print("Invalid ports payload:", msg)
-            return
+        # if not ip or not ports or len(ports) <= 3:
+        #     print("Invalid ports payload:", msg)
+        #     return
 
         mouse_port = ports[0]
         keyboard_port = ports[1]
-        screen_port = ports[2]
+        screen_port = 9999
 
         print("Mouse port:", mouse_port)
         print("Keyboard port:", keyboard_port)
@@ -137,8 +138,9 @@ class MainWindow(QMainWindow):
         # keyboard_client = Client()
         # keyboard_client.connect(ip, keyboard_port)
         #
-        # screen_client = Client()
-        # screen_client.connect(ip, screen_port)
+
+        screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
+        screen_receiver.start()
 
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
