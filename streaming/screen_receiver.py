@@ -73,6 +73,12 @@ class ScreenReceiver:
         self.thread.join(timeout=1)
         cv2.destroyAllWindows()
     def run(self):
+        cv2.namedWindow("ANYDESK - Low Latency", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty(
+            "ANYDESK - Low Latency",
+            cv2.WND_PROP_FULLSCREEN,
+            cv2.WINDOW_FULLSCREEN
+        )
         while not self.stop_event.is_set():
             try:
                 packet, addr = self.sock.recvfrom(BUFFER_SIZE)
