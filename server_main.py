@@ -14,6 +14,7 @@ connected_users = {}   # email -> client_socket
 connected_by_address = {}  # address -> client_socket
 pending_requests = {}  # request_id -> (controller_socket, target_socket)
 active_sessions = {}  # session_id -> (controller_socket, target_socket)
+address_keys = set()  # To track generated addresses and ensure uniqueness
 lock = threading.Lock() 
 def load_or_create_key():
     if os.path.exists(KEY_FILE):
@@ -27,9 +28,12 @@ encryption_key = load_or_create_key()
 
 fernet = Fernet(encryption_key)
 def generate_anydesk_address():
-    key = random.randint(100000000, 999999999)
-    print("Generated AnyDesk Address:", key)
-    return str(key)  
+    while True:
+        key = random.randint(100000000, 999999999)
+        if key not in address_keys:
+            address_keys.add(key)
+            print("Generated AnyDesk Address:", key)
+            return str(key)
 def create_database():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()

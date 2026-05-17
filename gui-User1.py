@@ -146,10 +146,6 @@ class MainWindow(QMainWindow):
         print("Received message from server:\n", msg)
         action = msg.get("action")
         data = msg.get("data", {})
-        if msg.get("status") == "error":
-            error_message = data.get("message", "Address not found or other error.")
-            QMessageBox.critical(self, "Error from Server", error_message)
-            return
         if action == "incoming_connection":
             from_username = data.get("from_username", "Unknown")
             from_address = data.get("from_address", "Unknown")
