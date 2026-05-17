@@ -1,3 +1,5 @@
+# בסד
+
 # ===== Sender - Low Latency Screen Stream =====
 import math
 
@@ -10,7 +12,7 @@ import socket
 import threading
 WIDTH = 960
 HEIGHT = 540
-JPEG_QUALITY = 45
+JPEG_QUALITY = 100
 TARGET_FPS = 20
 
 CHUNK_SIZE = 1200

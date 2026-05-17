@@ -1,4 +1,6 @@
+# בסד
 #gui.py
+
 import json
 import os
 import random
@@ -12,63 +14,115 @@ from channels.mouse_sender import MouseSender
 from channels.mouse_receiver import MouseReceiver
 from streaming.screen_sender import ScreenSender
 from streaming.screen_receiver import ScreenReceiver
+
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 from PySide6.QtCore import QSize, Qt, QRegularExpression
 from PySide6.QtGui import QIcon,QGuiApplication, QFont, QRegularExpressionValidator
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # בונה נתיב יחסי לתיקיית Images
 ICON_PATH = os.path.join(BASE_DIR, "Images", "anydesk_icon.png")
 ARROW_PATH = os.path.join(BASE_DIR, "Images", "down-arrow.png")
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
         self.client = Client()
         self.client_socket = self.client.get_socket()
         self.is_authenticated = False
         self.current_user = {}
+
         try:
             print("Connecting to server...")
-            self.client.connect("10.0.0.30", 8080)#192.168.1.228 , 192.168.2.16
+            self.client.connect("192.168.2.16", 8080)#192.168.1.228 , 192.168.2.16
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
+
         self.register_window = None
         self.login_window = None
+
         self.setWindowTitle("AnyDesk")
+
         icon = QIcon(ICON_PATH)
         self.setWindowIcon(icon)
+
 # ==================================================================
+
         container = QWidget()
         self.setCentralWidget(container)
+
         self.layout = QVBoxLayout(container)
+
+        # ===================== בס״ד BUTTON =====================
+
+        top_bar = QHBoxLayout()
+        top_bar.addStretch()
+
+        self.bsd_button = QPushButton("בס״ד")
+        self.bsd_button.setFixedSize(70, 30)
+        self.bsd_button.clicked.connect(self.show_easter_egg)
+
+        top_bar.addWidget(self.bsd_button)
+
+        self.layout.addLayout(top_bar)
+
+        # =======================================================
+
         label = QLabel("Welcome to AnyDesk")
         label.setAlignment(Qt.AlignCenter)
+
         primary_screen = QGuiApplication.primaryScreen()
         screen_size = primary_screen.size()
+
         screen_width = screen_size.width()
         screen_height = screen_size.height()
+
         self.setFixedSize(QSize(screen_width,screen_height))
+
         menubar = self.menuBar()
+
         arrow_icon = QIcon(ARROW_PATH)
+
         register_login_logout_menu = menubar.addMenu(arrow_icon, "down")
+
         self.register_menu = register_login_logout_menu.addAction("Register")
         self.register_menu.triggered.connect(self.register_action)
+
         self.login_menu = register_login_logout_menu.addAction("Login")
         self.login_menu.triggered.connect(self.login_action)
+
         self.log_out_menu = register_login_logout_menu.addAction("Log Out")
         self.log_out_menu.triggered.connect(self.logout_action)
         self.log_out_menu.setVisible(False)
+
         self.layout.addWidget(label)
+
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
+
         self.layout.addWidget(self.status_label)
+
         self.build_remote_connect_gui()
+
         self.remote_box.hide()
+
+    # ===================== EASTER EGG =====================
+
+    def show_easter_egg(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("בס״ד")
+        msg.setText("צדיק!")
+        msg.setIcon(QMessageBox.Information)
+        msg.exec()
+
+    # =====================================================
 
     def receive(self, buffer_size=4096):
         return self.client_socket.recv(buffer_size)
@@ -76,8 +130,10 @@ class MainWindow(QMainWindow):
     def send_ports_to_full_connection(self, client_socket):
         server_mouse_connection = Server(host="0.0.0.0", port=0)
         mouse_port = server_mouse_connection.port
+
         server_keyboard_connection = Server(host="0.0.0.0", port=0)
         keyboard_port = server_keyboard_connection.port
+
         controller_ip = client_socket.getpeername()[0]
 
         ports_payload = {
@@ -90,7 +146,9 @@ class MainWindow(QMainWindow):
         client_socket.sendall((json.dumps(ports_payload) + "\n").encode("utf-8"))
 
         print("Waiting for mouse connection...")
+
         client_mouse_socket = server_mouse_connection.accept_connection()
+
         print("Mouse connection accepted.")
 
         # כרגע רק עכבר פעיל
@@ -99,14 +157,17 @@ class MainWindow(QMainWindow):
 
         mouse_receiver = MouseReceiver(client_mouse_socket)
         mouse_receiver.start()
-        
+
         screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
         screen_sender.start()
+
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
+
         print("Raw ports payload:", payload)
 
         msg = json.loads(payload.decode("utf-8").strip())
+
         print("Decoded ports payload:", msg)
 
         ip = msg.get("IP")
@@ -127,6 +188,7 @@ class MainWindow(QMainWindow):
 
         mouse_client = Client()
         mouse_client.connect(ip, mouse_port)
+
         mouse_client_socket = mouse_client.get_socket()
 
         print("Connected to mouse socket.")
@@ -137,31 +199,36 @@ class MainWindow(QMainWindow):
         # כרגע לא מחברים מקלדת ומסך
         # keyboard_client = Client()
         # keyboard_client.connect(ip, keyboard_port)
-        #
 
         screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
         screen_receiver.start()
 
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
+
         action = msg.get("action")
         data = msg.get("data", {})
+
         if msg.get("status") == "error":
             error_message = data.get("message", "Address not found or other error.")
+
             QMessageBox.critical(self, "Error from Server", error_message)
             return
+
         if action == "incoming_connection":
             from_username = data.get("from_username", "Unknown")
             from_address = data.get("from_address", "Unknown")
             request_id = data.get("request_id")
-            
+
             ans = QMessageBox.question(
                 self,
                 "Incoming Connection",
                 f"{from_username} wants to connect from {from_address}. Accept?",
                 QMessageBox.Yes | QMessageBox.No
-            )            
+            )
+
             accepted = (ans == QMessageBox.Yes)
+
             response_payload = {
                 "action": "incoming_response",
                 "data": {
@@ -169,18 +236,25 @@ class MainWindow(QMainWindow):
                     "accepted": accepted
                 }
             }
+
             self.client.send_json(response_payload)
+
         elif action == "connect_result":
             accepted = data.get("accepted", False)
+
             QMessageBox.information(
-                self, "Result", "Accepted!" if accepted else "Declined."
+                self,
+                "Result",
+                "Accepted!" if accepted else "Declined."
             )
+
         elif action == "connection_established":  # Controlled side, Server
             print("Connection established, setting up server...")
 
             session_id = data.get("session_id")
 
             self.server_connection = Server(host="0.0.0.0", port=9080)
+
             self.ip, port = self.server_connection.getsockname()
 
             print(f"ip sent to controller {self.ip}")
@@ -197,15 +271,19 @@ class MainWindow(QMainWindow):
             print(f"Listening for incoming connections on {self.ip}:{port}")
 
             client_socket = self.server_connection.accept_connection()
+
             print("Controller connected to controlled side.")
 
             greeting = client_socket.recv(4096)
+
             print("Received from controller:", greeting)
 
             client_socket.sendall(b"Hello from controlled side!")
+
             print("Sent greeting to controller.")
 
             self.send_ports_to_full_connection(client_socket)
+
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
 
@@ -213,92 +291,117 @@ class MainWindow(QMainWindow):
             port = data.get("port")
 
             QMessageBox.information(
-                self, "Connection Details", f"Connect to IP: {ip}, Port: {port}"
+                self,
+                "Connection Details",
+                f"Connect to IP: {ip}, Port: {port}"
             )
 
             print(f"Connection to {ip}, {port}")
 
             self.client_connection = Client()
+
             self.client_connection.connect(ip, port)
 
             self.client_connection.send(b"Hello from controller!")
 
             greeting = self.client_connection.receive()
+
             print("Received from controlled side:", greeting.decode("utf-8"))
 
             print("Main direct connection established successfully.")
 
             self.connect_to_server_sockets()
+
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
+
             self.remote_box.show()
+
             if hasattr(self, "register_menu"):
                 self.register_menu.setVisible(False)
+
             if hasattr(self, "login_menu"):
                 self.login_menu.setVisible(False)
+
             if hasattr(self, "log_out_menu"):
                 self.log_out_menu.setVisible(True)
+
     def show_authenticated_gui(self):
         if hasattr(self, "address_row"):
             self.address_label.setText(self.current_user.get("address", "Unknown"))
-            self.address_row.show()  # ← מציג מחדש אם כבר קיים
+            self.address_row.show()
             return
+
         self.address_row = QWidget()
+
         row = QHBoxLayout(self.address_row)
+
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(20) 
+        row.setSpacing(20)
 
         self.key_label = QLabel("Your Address")
         self.key_label.setFont(QFont("Arial", 32))
         self.key_label.setStyleSheet("color: black;")
 
         address = self.current_user.get("address", "Unknown")
+
         self.address_label = QLabel(address)
         self.address_label.setFont(QFont("Arial", 48, QFont.Bold))
         self.address_label.setStyleSheet("color: #ff4a3d;")
 
-        # כדי שלא “יתמתחו” וידחפו את הטקסט למרכז/רחוק
         self.key_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
         self.address_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
 
-        # יישור בתוך השורה
         row.addWidget(self.key_label, 0, Qt.AlignVCenter)
         row.addWidget(self.address_label, 0, Qt.AlignVCenter)
-        # אם אתה רוצה שכל השורה תהיה באמצע המסך:
+
         self.layout.addWidget(self.address_row, alignment=Qt.AlignHCenter)
-        
+
     def update_status_label(self):
         print("STATUS:", self.is_authenticated, self.current_user)
+
         if not self.is_authenticated or not self.current_user:
             self.status_label.setText("Please register or login to continue.")
-            if hasattr(self, "address_row"):  # ← הוסף בדיקה
+
+            if hasattr(self, "address_row"):
                 self.address_row.setDisabled(False)
+
             return
+
         username = self.current_user.get("username", "User")
+
         self.status_label.setText(f"Welcome, {username}!")
+
         return
+
 # ==================================================================
+
     def logout_action(self):
         print("LOGOUT    => ", self.current_user)
+
         self.send_logout_data(self.current_user)
+
         self.is_authenticated = False
         self.current_user = {}
+
         self.update_status_label()
 
         if hasattr(self, "address_row"):
-            self.address_row.hide()  # מסתיר במקום למחוק
+            self.address_row.hide()
 
         if hasattr(self, "socket_listener"):
             self.socket_listener.stop()
 
         if hasattr(self, "remote_box"):
-            self.remote_box.hide()  # מסתיר במקום למחוק
+            self.remote_box.hide()
 
         if hasattr(self, "log_out_menu"):
             self.log_out_menu.setVisible(False)
+
         if hasattr(self, "register_menu"):
             self.register_menu.setVisible(True)
+
         if hasattr(self, "login_menu"):
             self.login_menu.setVisible(True)
 
@@ -307,7 +410,9 @@ class MainWindow(QMainWindow):
                 "action": "logout",
                 "data": logout_data
             }
+
         self.client.send_json(payload)
+
     def register_action(self):
         self.register_window = Register(self.client, self)
         self.register_window.show()
@@ -315,59 +420,88 @@ class MainWindow(QMainWindow):
     def login_action(self):
         self.login_window = Login(self.client, self)
         self.login_window.show()
+
     def normalize_address(self, text):
         return "".join(ch for ch in text if ch.isdigit())
 
     def validate_address(self, address):
         return address.isdigit() and 6 <= len(address) <= 15
+
     def on_remote_input_changed(self, text):
         addr = self.normalize_address(text)
+
         is_valid = self.validate_address(addr)
+
         self.connect_btn.setEnabled(is_valid)
+
     def connect_to_remote(self):
         self.remote_address = self.normalize_address(self.remote_input.text())
+
         if not self.validate_address(self.remote_address):
-            QMessageBox.warning(self, "Invalid Address", "Please enter a valid remote address (6-15 digits).")
+            QMessageBox.warning(
+                self,
+                "Invalid Address",
+                "Please enter a valid remote address (6-15 digits)."
+            )
             return
-        QMessageBox.information(self, "Connecting", f"Attempting to connect to {self.remote_address}...")
+
+        QMessageBox.information(
+            self,
+            "Connecting",
+            f"Attempting to connect to {self.remote_address}..."
+        )
+
         from_address = self.current_user.get("address", "")
         email = self.current_user.get("email", "")
         username = self.current_user.get("username", "")
+
         connect_data = {
             "from_email": email,
             "from_username": username,
             "from_address": from_address,
             "target_address": self.remote_address
         }
+
         payload = {
             "action": "connect_request",
             "data": connect_data
         }
+
         print(f"Connecting to addr {self.remote_address} with payload:", payload)
+
         self.client.send_json(payload)
-        
+
     def build_remote_connect_gui(self):
         self.remote_box = QGroupBox("Connect to Remote Address")
+
         box_layout = QHBoxLayout(self.remote_box)
+
         box_layout.setContentsMargins(12, 10, 12, 10)
         box_layout.setSpacing(10)
-        
+
         self.remote_input = QLineEdit()
+
         self.remote_input.setPlaceholderText("Enter Remote Address")
+
         self.remote_input.setClearButtonEnabled(True)
-        
+
         self.connect_btn = QPushButton("Connect")
+
         self.connect_btn.setEnabled(False)
+
         self.remote_input.textChanged.connect(self.on_remote_input_changed)
+
         self.connect_btn.clicked.connect(self.connect_to_remote)
-        
-                
+
         box_layout.addWidget(self.remote_input)
-        box_layout.addWidget(self.connect_btn) 
-        
+        box_layout.addWidget(self.connect_btn)
+
         self.layout.addWidget(self.remote_box, alignment=Qt.AlignHCenter)
+
     def start_listener_once(self):
         if not hasattr(self, "socket_listener"):
             self.socket_listener = SocketListener(self.client)
+
             self.socket_listener.message_received.connect(self.handle_server_message)
+
             self.socket_listener.start()
