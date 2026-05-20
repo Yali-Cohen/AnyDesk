@@ -14,6 +14,8 @@ from channels.mouse_sender import MouseSender
 from channels.mouse_receiver import MouseReceiver
 from streaming.screen_sender import ScreenSender
 from streaming.screen_receiver import ScreenReceiver
+from channels.keyboard_receiver import KeyboardReceiver
+from channels.keyboard_sender import KeyboardSender
 
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -152,7 +154,7 @@ class MainWindow(QMainWindow):
         print("Mouse connection accepted.")
 
         # כרגע רק עכבר פעיל
-        # client_keyboard_socket = server_keyboard_connection.accept_connection()
+        client_keyboard_socket = server_keyboard_connection.accept_connection()
         # client_screen_socket = server_screen_connection.accept_connection()
 
         mouse_receiver = MouseReceiver(client_mouse_socket)
@@ -161,6 +163,8 @@ class MainWindow(QMainWindow):
         screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
         screen_sender.start()
 
+        keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
+        keyboard_receiver.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
 
@@ -196,13 +200,11 @@ class MainWindow(QMainWindow):
         mouse_sender = MouseSender(mouse_client_socket)
         mouse_sender.start()
 
-        # כרגע לא מחברים מקלדת ומסך
-        # keyboard_client = Client()
-        # keyboard_client.connect(ip, keyboard_port)
-
         screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
         screen_receiver.start()
 
+        keyboard_sender = KeyboardSender(target_ip=ip, target_port=keyboard_port)
+        keyboard_sender.start()
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
 
