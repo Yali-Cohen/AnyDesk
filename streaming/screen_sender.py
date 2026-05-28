@@ -20,6 +20,8 @@ class ScreenSender:
     def __init__(self, target_ip:str, target_port:int):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024 * 1024)
+        # Setting the send buffer size to 1MB to help prevent packet loss during high bitrate streaming.
+        #זה עוזר במקרים של עומס, שהמערכת הפעלה תחזיק אצלה יותר חבילות עד שישלח.
         self.stop_evt = threading.Event()
         self.TARGET_IP = target_ip
         self.TARGET_PORT = target_port
@@ -28,14 +30,15 @@ class ScreenSender:
     def start(self):
         self.stop_evt.clear()
         self.thread = threading.Thread(target=self.capture_screen, daemon=True)
+        # Daemon thread will automatically exit when the main program exits, so we don't have to worry about it hanging on exit.
         self.thread.start()
 
     def stop(self):
         self.stop_evt.set()
-        if self.thread not in None:
+        if self.thread is not None:
             self.thread.join()
 
-    def send_frame_jpeg(self, frame_bgr, frame_id, quality=45):
+    def send_frame_jpeg(self, frame_bgr, frame_id, quality=80):
         ok, enc = cv2.imencode(
             ".jpg",
             frame_bgr,

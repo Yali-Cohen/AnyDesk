@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
 
         try:
             print("Connecting to server...")
-            self.client.connect("192.168.2.16", 8080)#192.168.1.228 , 192.168.2.16
+            self.client.connect("10.0.0.35", 8080)#192.168.1.228 , 192.168.2.16
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -157,14 +157,14 @@ class MainWindow(QMainWindow):
         client_keyboard_socket = server_keyboard_connection.accept_connection()
         # client_screen_socket = server_screen_connection.accept_connection()
 
-        mouse_receiver = MouseReceiver(client_mouse_socket)
-        mouse_receiver.start()
+        self.mouse_receiver = MouseReceiver(client_mouse_socket)
+        self.mouse_receiver.start()
 
-        screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
-        screen_sender.start()
+        self.screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
+        self.screen_sender.start()
 
-        keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
-        keyboard_receiver.start()
+        self.keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
+        self.keyboard_receiver.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
 
@@ -197,14 +197,29 @@ class MainWindow(QMainWindow):
 
         print("Connected to mouse socket.")
 
-        mouse_sender = MouseSender(mouse_client_socket)
-        mouse_sender.start()
+        self.mouse_sender = MouseSender(mouse_client_socket)
+        self.mouse_sender.start()
 
-        screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
-        screen_receiver.start()
+        self.screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
+        self.screen_receiver.start()
 
-        keyboard_sender = KeyboardSender(target_ip=ip, target_port=keyboard_port)
-        keyboard_sender.start()
+        self.keyboard_sender = KeyboardSender(target_ip=ip, target_port=keyboard_port, close_session_callback=self.close_session)
+        self.keyboard_sender.start()
+    def close_session(self):
+        print("Closing session...")
+
+        for name in [
+            "mouse_sender",
+         "mouse_receiver",
+         "screen_sender",
+         "screen_receiver",
+         "keyboard_sender",
+         "keyboard_receiver"
+         ]:
+            if hasattr(self, name):
+                channel = getattr(self, name)
+                print(f"Stopping {name}...")
+                channel.stop()
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
 
@@ -273,7 +288,7 @@ class MainWindow(QMainWindow):
             print(f"Listening for incoming connections on {self.ip}:{port}")
 
             client_socket = self.server_connection.accept_connection()
-
+            self.client_connection = client_socket
             print("Controller connected to controlled side.")
 
             greeting = client_socket.recv(4096)
