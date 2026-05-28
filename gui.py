@@ -5,6 +5,7 @@ import json
 import os
 import random
 import sys,ctypes
+import threading
 from client1 import Client
 from register import Register
 from login import Login
@@ -16,7 +17,7 @@ from streaming.screen_sender import ScreenSender
 from streaming.screen_receiver import ScreenReceiver
 from channels.keyboard_receiver import KeyboardReceiver
 from channels.keyboard_sender import KeyboardSender
-
+from channels.local_shortcut_listener import LocalShortcutListener
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
@@ -165,6 +166,8 @@ class MainWindow(QMainWindow):
 
         self.keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
         self.keyboard_receiver.start()
+        self.local_shortcut_listener = LocalShortcutListener(close_callback=self.close_session)
+        self.local_shortcut_listener.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
 
@@ -205,21 +208,35 @@ class MainWindow(QMainWindow):
 
         self.keyboard_sender = KeyboardSender(target_ip=ip, target_port=keyboard_port, close_session_callback=self.close_session)
         self.keyboard_sender.start()
-    def close_session(self):
+    def close_session(self, notify_peer=True):
         print("Closing session...")
-
+        if notify_peer:
+            try:
+                data = {"action":"close_session"}
+                self.client_connection.send_json(data)
+            except Exception as e:
+                print(f"Error sending close session message: {e}")
         for name in [
             "mouse_sender",
-         "mouse_receiver",
-         "screen_sender",
-         "screen_receiver",
-         "keyboard_sender",
-         "keyboard_receiver"
-         ]:
+            "mouse_receiver",
+            "screen_sender",
+            "screen_receiver",
+            "keyboard_sender",
+            "keyboard_receiver",
+            "local_shortcut_listener"
+        ]:
             if hasattr(self, name):
                 channel = getattr(self, name)
-                print(f"Stopping {name}...")
-                channel.stop()
+
+                if channel is not None:
+                    try:
+                        print(f"Stopping {name}...")
+                        channel.stop()
+                        print(f"{name} stopped.")
+                    except Exception as e:
+                        print(f"Error stopping {name}: {e}")
+                
+    print("Session closed locally.")
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
 
@@ -329,6 +346,7 @@ class MainWindow(QMainWindow):
 
             self.connect_to_server_sockets()
 
+            self.start_direct_listener()
     def update_gui(self):
         if self.is_authenticated and self.current_user:
             self.show_authenticated_gui()
@@ -522,3 +540,26 @@ class MainWindow(QMainWindow):
             self.socket_listener.message_received.connect(self.handle_server_message)
 
             self.socket_listener.start()
+    def start_direct_listener(self):
+        self.direct_listener_thread = threading.Thread(
+            target=self.listen_to_direct_connection,
+            daemon=True
+        )
+        self.direct_listener_thread.start()
+    def listen_to_direct_connection(self):
+        while True:
+            try:
+                data = self.client_connection.receive()
+                if not data: # when recv returns empty, it means the connection has been closed by the peer
+                    print("Direct connection closed by peer.")
+                    self.close_session(notify_peer=False)
+                    break
+                msg = json.loads(data.decode("utf-8").strip())
+                if msg.get("action") == "close_session":
+                    print("Received close session message from peer.")
+                    self.close_session(notify_peer=False)
+                    return
+            except Exception as e:
+                print(f"Error in direct connection listener: {e}")
+                self.close_session(notify_peer=False)
+                break

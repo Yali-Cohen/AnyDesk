@@ -73,73 +73,77 @@ class ScreenReceiver:
         self.thread.join(timeout=1)
         cv2.destroyAllWindows()
     def run(self):
-        cv2.namedWindow("ANYDESK - Low Latency", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty(
-            "ANYDESK - Low Latency",
-            cv2.WND_PROP_FULLSCREEN,
-            cv2.WINDOW_FULLSCREEN
-        )
-        while not self.stop_event.is_set():
-            try:
-                packet, addr = self.sock.recvfrom(BUFFER_SIZE)
-            except OSError:
-                break
-            # header size:
-            # I = 4 bytes
-            # H = 2 bytes
-            # H = 2 bytes
-            # d = 8 bytes
-            # total = 16 bytes
-            if len(packet) < 16:
-                continue
+        try:
+            cv2.namedWindow("ANYDESK - Low Latency", cv2.WINDOW_NORMAL)
+            cv2.setWindowProperty(
+                "ANYDESK - Low Latency",
+                cv2.WND_PROP_FULLSCREEN,
+                cv2.WINDOW_FULLSCREEN
+            )
+            while not self.stop_event.is_set():
+                try:
+                    packet, addr = self.sock.recvfrom(BUFFER_SIZE)
+                except OSError:
+                    break
+                # header size:
+                # I = 4 bytes
+                # H = 2 bytes
+                # H = 2 bytes
+                # d = 8 bytes
+                # total = 16 bytes
+                if len(packet) < 16:
+                    continue
 
-            header = packet[:16]
-            chunk_data = packet[16:]
+                header = packet[:16]
+                chunk_data = packet[16:]
 
-            frame_id, chunk_index, total_chunks, send_time = struct.unpack("!IHHd", header)
+                frame_id, chunk_index, total_chunks, send_time = struct.unpack("!IHHd", header)
 
-            # אם זה פריים ישן שכבר לא מעניין אותנו
-            if frame_id <= self.latest_displayed_frame_id:
-                self.dropped_old_frames += 1
-                continue
+                # אם זה פריים ישן שכבר לא מעניין אותנו
+                if frame_id <= self.latest_displayed_frame_id:
+                    self.dropped_old_frames += 1
+                    continue
 
-            now = time.perf_counter()
+                now = time.perf_counter()
 
-            if frame_id not in self.frames:
-                self.frames[frame_id] = {
-                    "total_chunks": total_chunks,
-                    "chunks": {},
-                    "last_seen": now,
-                    "send_time": send_time
-                }
+                if frame_id not in self.frames:
+                    self.frames[frame_id] = {
+                        "total_chunks": total_chunks,
+                        "chunks": {},
+                        "last_seen": now,
+                        "send_time": send_time
+                    }
 
-            self.frames[frame_id]["chunks"][chunk_index] = chunk_data
-            self.frames[frame_id]["last_seen"] = now
+                self.frames[frame_id]["chunks"][chunk_index] = chunk_data
+                self.frames[frame_id]["last_seen"] = now
 
-            self.cleanup_old_frames(now)
-            if frame_id not in self.frames:
-                continue
-            expected = self.frames[frame_id]["total_chunks"]
+                self.cleanup_old_frames(now)
+                if frame_id not in self.frames:
+                    continue
+                expected = self.frames[frame_id]["total_chunks"]
 
-            if len(self.frames[frame_id]["chunks"]) == expected:
-                chunks = self.frames[frame_id]["chunks"]
+                if len(self.frames[frame_id]["chunks"]) == expected:
+                    chunks = self.frames[frame_id]["chunks"]
 
-                if len(chunks) == expected and all(i in chunks for i in range(expected)):
-                    jpg_bytes = b"".join(chunks[i] for i in range(expected))
+                    if len(chunks) == expected and all(i in chunks for i in range(expected)):
+                        jpg_bytes = b"".join(chunks[i] for i in range(expected))
 
-                    arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
-                    frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                        arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
+                        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
-                    if frame is not None:
-                        latency_ms = (time.perf_counter() - self.frames[frame_id]["send_time"]) * 1000
+                        if frame is not None:
+                            latency_ms = (time.perf_counter() - self.frames[frame_id]["send_time"]) * 1000
 
-                        self.latest_displayed_frame_id = frame_id
+                            self.latest_displayed_frame_id = frame_id
 
-                        del self.frames[frame_id]
-                        self.delete_frames_older_than(frame_id)
+                            del self.frames[frame_id]
+                            self.delete_frames_older_than(frame_id)
 
-                        self.display_frame(frame, latency_ms)
+                            self.display_frame(frame, latency_ms)
+                        else:
+                            del self.frames[frame_id]
                     else:
-                        del self.frames[frame_id]
-                else:
-                    del self.frames[frame_id] 
+                        del self.frames[frame_id] 
+        finally:
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)

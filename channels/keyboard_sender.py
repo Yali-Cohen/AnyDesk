@@ -12,7 +12,7 @@ class KeyboardSender:
         self.stop_event = threading.Event()
         self.thread = None
         self.pressed_keys = set()
-        self.close_session_callback = self.close_session_callback
+        self.close_session_callback = close_session_callback
     def start(self):
         if self.thread is not None and self.thread.is_alive():
             return
@@ -76,7 +76,7 @@ class KeyboardSender:
         
         if self.is_close_combination():
             self.on_close_combination()
-            return
+            return False
         key_data = self.serialize_key(key)
 
         if key_data is None:
