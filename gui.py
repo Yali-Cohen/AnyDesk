@@ -166,7 +166,9 @@ class MainWindow(QMainWindow):
 
         self.keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
         self.keyboard_receiver.start()
-        self.local_shortcut_listener = LocalShortcutListener(close_callback=self.close_session)
+        self.local_shortcut_listener = LocalShortcutListener(
+    close_session_callback=self.close_session
+)
         self.local_shortcut_listener.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
@@ -210,12 +212,15 @@ class MainWindow(QMainWindow):
         self.keyboard_sender.start()
     def close_session(self, notify_peer=True):
         print("Closing session...")
+
         if notify_peer:
             try:
-                data = {"action":"close_session"}
-                self.client_connection.send_json(data)
+                data = {"action": "close_session"}
+                self.send_direct_json(data)
+                print("Close session message sent to peer.")
             except Exception as e:
                 print(f"Error sending close session message: {e}")
+
         for name in [
             "mouse_sender",
             "mouse_receiver",
@@ -225,18 +230,24 @@ class MainWindow(QMainWindow):
             "keyboard_receiver",
             "local_shortcut_listener"
         ]:
-            if hasattr(self, name):
-                channel = getattr(self, name)
+            channel = getattr(self, name, None)
 
-                if channel is not None:
-                    try:
-                        print(f"Stopping {name}...")
-                        channel.stop()
-                        print(f"{name} stopped.")
-                    except Exception as e:
-                        print(f"Error stopping {name}: {e}")
-                
-    print("Session closed locally.")
+            if channel is not None:
+                try:
+                    print(f"Stopping {name}...")
+                    channel.stop()
+                    print(f"{name} stopped.")
+                except Exception as e:
+                    print(f"Error stopping {name}: {e}")
+
+        for name in [
+            "client_connection",
+            "server_connection"
+        ]:
+            obj = getattr(self, name, None)
+            self.safe_close(obj, name)
+
+        print("Session closed locally.")
     def handle_server_message(self, msg:dict):
         print("Received message from server:\n", msg)
 
@@ -317,6 +328,7 @@ class MainWindow(QMainWindow):
             print("Sent greeting to controller.")
 
             self.send_ports_to_full_connection(client_socket)
+            self.start_direct_listener()
 
         elif action == "connection_details":#Controller side
             print("Received connection details from server.")
@@ -549,17 +561,47 @@ class MainWindow(QMainWindow):
     def listen_to_direct_connection(self):
         while True:
             try:
-                data = self.client_connection.receive()
-                if not data: # when recv returns empty, it means the connection has been closed by the peer
+                data = self.receive_direct_data()
+
+                if not data:
                     print("Direct connection closed by peer.")
                     self.close_session(notify_peer=False)
                     break
+
                 msg = json.loads(data.decode("utf-8").strip())
+
                 if msg.get("action") == "close_session":
                     print("Received close session message from peer.")
                     self.close_session(notify_peer=False)
                     return
+
             except Exception as e:
                 print(f"Error in direct connection listener: {e}")
                 self.close_session(notify_peer=False)
                 break
+    def send_direct_json(self, data):
+        message = json.dumps(data)
+
+        if hasattr(self.client_connection, "send_json"):
+            self.client_connection.send_json(data)
+
+        elif hasattr(self.client_connection, "send"):
+            self.client_connection.send(message.encode("utf-8"))
+
+        else:
+            self.client_connection.sendall(message.encode("utf-8"))
+            
+    def receive_direct_data(self):
+        if hasattr(self.client_connection, "receive"):
+            return self.client_connection.receive()
+        else:
+            return self.client_connection.recv(4096)
+    def safe_close(self, obj, name):
+        if obj is None:
+            return
+
+        try:
+            obj.close()
+            print(f"{name} closed.")
+        except Exception as e:
+            print(f"Error closing {name}: {e}")
