@@ -1,10 +1,9 @@
 # בס"ד
 import threading
-from pynput import keyboard
 import socket
 import json
-
-
+import time
+import keyboard as system_keyboard
 class KeyboardSender:
     def __init__(self, target_ip, target_port, close_session_callback=None):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,95 +20,36 @@ class KeyboardSender:
         self.thread.start()
 
     def run(self):
-        with keyboard.Listener(
-            on_press=self.on_press,
-            on_release=self.on_release
-        ) as listener:
-            listener.join()
+        system_keyboard.hook(self.on_keyboard_event, suppress=True)
 
-    def serialize_key(self, key):
-        """
-        הפונקציה הזאת הופכת מקש למבנה שאפשר לשלוח ברשת.
-        מקש מיוחד כמו Ctrl / Alt / Tab נשלח לפי שם.
-        מקש רגיל כמו A / C / V נשלח לפי vk.
-        """
+        while not self.stop_event.is_set():
+            time.sleep(0.05)
+    def on_keyboard_event(self, event):
+        original_key = event.name
+        key_for_logic = original_key.lower()
+        event_type = event.event_type
 
-        # מקשים מיוחדים: ctrl, alt, tab, enter, shift וכו'
-        if isinstance(key, keyboard.Key):
-            return {
-                "key_type": "special",
-                "key": key.name
-            }
+        print("KEY EVENT:", original_key, event_type)
 
-        # מקשים רגילים: אותיות, מספרים וכו'
-        if hasattr(key, "vk") and key.vk is not None:
-            return {
-                "key_type": "vk",
-                "key": key.vk
-            }
+        if event_type == "down":
+            self.pressed_keys.add(key_for_logic)
 
-        # גיבוי למקרה חריג
-        if hasattr(key, "char") and key.char is not None:
-            return {
-                "key_type": "char",
-                "key": key.char
-            }
+        elif event_type == "up":
+            self.pressed_keys.discard(key_for_logic)
 
-        return None
-    def key_id(self, key):
-        # מקשים מיוחדים כמו ctrl, shift, alt, tab
-        if isinstance(key, keyboard.Key):
-            return key.name
-
-        # מקשים רגילים כמו A, C, V, X
-        if hasattr(key, "vk") and key.vk is not None:
-            return f"vk_{key.vk}"
-
-        # גיבוי לפי תו
-        if hasattr(key, "char") and key.char is not None:
-            return key.char.lower()
-
-        return str(key)
-    def on_press(self, key):
-        key_identifier = self.key_id(key)
-        self.pressed_keys.add(key_identifier)
-        
         if self.is_close_combination():
             self.on_close_combination()
-            return False
-        key_data = self.serialize_key(key)
-
-        if key_data is None:
             return
 
         data = {
-            "type": "key_press",
-            **key_data
+            "type": "key_press" if event_type == "down" else "key_release",
+            "key_type": "name",
+            "key": key_for_logic
         }
 
-        print("SENDING PRESS:", data)
+        print("SENDING KEY:", data)
         self.send_key_event(data)
-
-    def on_release(self, key):
-        key_identifier = self.key_id(key)
         
-        if key_identifier in self.pressed_keys:
-            self.pressed_keys.remove(key_identifier)
-        key_data = self.serialize_key(key)
-
-        if key_data is None:
-            return
-
-        data = {
-            "type": "key_release",
-            **key_data
-        }
-
-        print("SENDING RELEASE:", data)
-        self.send_key_event(data)
-
-        # כרגע לא עוצרים על ESC, כי אולי נרצה לשלוח ESC למחשב הנשלט
-
     def send_key_event(self, data):
         message = json.dumps(data) + "\n"
         self.sock.sendall(message.encode("utf-8"))
@@ -127,7 +67,7 @@ class KeyboardSender:
     def is_close_combination(self):
         ctrl_pressed = "ctrl_l" in self.pressed_keys or "ctrl_r" in self.pressed_keys
         shift_pressed = "shift" in self.pressed_keys or "shift_r" in self.pressed_keys or "shift_l" in self.pressed_keys
-        x_pressed = "vk_88" in self.pressed_keys  # vk_88 הוא הקוד של X
+        x_pressed = "x" in self.pressed_keys
         return ctrl_pressed and shift_pressed and x_pressed
     def on_close_combination(self):
         print("Close combination pressed. Stopping keyboard sender.")
