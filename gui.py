@@ -4,6 +4,7 @@
 import json
 import os
 import random
+import socket
 import sys,ctypes
 import threading
 from client1 import Client
@@ -40,10 +41,18 @@ class MainWindow(QMainWindow):
         self.client_socket = self.client.get_socket()
         self.is_authenticated = False
         self.current_user = {}
+        
+        SERVER_IP = self.discover_server_ip()
+
+        if SERVER_IP is None:
+            QMessageBox.critical(self, "Error", "Could not find server on the network.")
+            return
+
+        HOST = SERVER_IP
 
         try:
             print("Connecting to server...")
-            self.client.connect("10.0.0.35", 8080)#192.168.1.228 , 192.168.2.16
+            self.client.connect(HOST, 8080)
             print("Connected to server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot connect to server: {e}")
@@ -115,9 +124,31 @@ class MainWindow(QMainWindow):
         self.build_remote_connect_gui()
 
         self.remote_box.hide()
+    def discover_server_ip(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.settimeout(5)
 
+        try:
+            sock.sendto(b"Client Here", ("255.255.255.255", 37020))
+
+            msg, addr = sock.recvfrom(1024)
+
+            print(f"Received broadcast response: {msg} from {addr}")
+
+            if msg == b"Server Here":
+                return addr[0]
+
+            return None
+
+        except socket.timeout:
+            print("Server discovery timed out.")
+            return None
+
+        finally:
+            sock.close()
     # ===================== EASTER EGG =====================
-
+    
     def show_easter_egg(self):
         msg = QMessageBox(self)
         msg.setWindowTitle("בס״ד")
@@ -605,3 +636,5 @@ class MainWindow(QMainWindow):
             print(f"{name} closed.")
         except Exception as e:
             print(f"Error closing {name}: {e}")
+            
+    

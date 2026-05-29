@@ -65,11 +65,23 @@ class KeyboardSender:
         if self.thread is not None:
             self.thread.join(timeout=1)
     def is_close_combination(self):
-        ctrl_pressed = "ctrl_l" in self.pressed_keys or "ctrl_r" in self.pressed_keys
-        shift_pressed = "shift" in self.pressed_keys or "shift_r" in self.pressed_keys or "shift_l" in self.pressed_keys
+        ctrl_pressed = "ctrl" in self.pressed_keys
+        shift_pressed = "shift" in self.pressed_keys
         x_pressed = "x" in self.pressed_keys
+
+        print("CHECK CLOSE:", self.pressed_keys)
+        print("CTRL:", ctrl_pressed, "SHIFT:", shift_pressed, "X:", x_pressed)
+
         return ctrl_pressed and shift_pressed and x_pressed
     def on_close_combination(self):
-        print("Close combination pressed. Stopping keyboard sender.")
+        print("Close combination pressed. Closing session.")
+
+        self.stop_event.set()
+
+        try:
+            system_keyboard.unhook_all()
+        except Exception:
+            pass
+
         if self.close_session_callback is not None:
             self.close_session_callback()

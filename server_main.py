@@ -1,5 +1,6 @@
 # server_main.py
 import random
+import socket
 from cryptography.fernet import Fernet
 import json
 import threading
@@ -269,14 +270,39 @@ def handle_client(server: Server, client_socket):
         print(connected_by_address)
         print(f"Handled action: {action} for {user_email} data: {payload}")
 
+def create_server_broadcast():
+    sock_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock_udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock_udp.bind(("0.0.0.0", 37020))
 
+    print("Broadcast discovery listener started on UDP port 37020.")
+
+    while True:
+        try:
+            msg, addr = sock_udp.recvfrom(1024)
+
+            print(f"Received broadcast message: {msg} from {addr}")
+
+            if msg == b"Client Here":
+                sock_udp.sendto(b"Server Here", addr)
+                print(f"Sent broadcast response to {addr}")
+
+        except Exception as e:
+            print(f"Broadcast listener error: {e}")
 def main():
     server = Server()
     print("Server listening on 0.0.0.0:9090...")
     create_database()
+    
+    broadcast_thread = threading.Thread(
+        target=create_server_broadcast,
+        daemon=True
+    )
+    broadcast_thread.start()
 
     while True:
         client_socket = server.accept_connection()
+        
         t = threading.Thread(target=handle_client, args=(server, client_socket), daemon=True)
         t.start()
 
