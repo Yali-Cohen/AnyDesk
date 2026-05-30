@@ -16,7 +16,7 @@ class Server:
         self.server_socket.sendall(data)
     def receive(self, buffer_size=1024):
         return self.server_socket.recv(buffer_size)
-    def receive_data(self, client_socket, buffer_size=1024):
+    def receive_data(self, client_socket: socket.socket, buffer_size=1024):
         return client_socket.recv(buffer_size)
     def get_number_of_connections(self):
         return self.connections

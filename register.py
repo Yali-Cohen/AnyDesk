@@ -16,7 +16,7 @@ ICON_PATH = os.path.join(BASE_DIR, "Images", "anydesk_icon.png")
 ARROW_PATH = os.path.join(BASE_DIR, "Images", "down-arrow.png")
 
 class Register(QWidget):
-    def __init__(self, client, main_window=None):
+    def __init__(self, client:Client, main_window=None):
         super().__init__()
         self.client = client
         self.main_window = main_window

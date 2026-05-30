@@ -1,4 +1,4 @@
-# channels/mouse_receiver.py
+# channels/mouse_receiver.py, receives mouse events from the client, decodes them, and applies them to the local machine using pynput. This runs in a separate thread to avoid blocking the main GUI thread.
 import threading
 from protocol.framing import iter_json_lines
 from protocol.mouse_codec import dict_to_mouse_event

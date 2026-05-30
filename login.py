@@ -18,7 +18,7 @@ ICON_PATH = os.path.join(BASE_DIR, "Images", "anydesk_icon.png")
 ARROW_PATH = os.path.join(BASE_DIR, "Images", "down-arrow.png")
 
 class Login(QWidget):
-    def __init__(self, client, main_window=None):
+    def __init__(self, client:Client, main_window=None):
         super().__init__()
         self.client = client
         self.main_window = main_window
@@ -100,8 +100,8 @@ class Login(QWidget):
                 address = response.get("address", "")                                                   
                 self.main_window.current_user = {
                     "email": login_data["email"]
-                    , "username": username
-                    , "address": address
+                    ,"username": username
+                    ,"address": address
                 }
                 self.main_window.update_status_label()
                 self.main_window.update_gui()

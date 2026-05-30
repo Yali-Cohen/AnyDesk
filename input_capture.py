@@ -1,4 +1,4 @@
-# input_capture.py
+# input_capture.py, captures mouse input using pynput and emits MouseEvent objects to a callback. This is used by the main GUI to capture local mouse events and send them to the server, and also by the server to capture mouse events from the controller and apply them to the target machine.
 from pynput import mouse
 import time
 from dataclasses import dataclass
@@ -78,7 +78,7 @@ class InputCapture:
 
     def _on_move(self, x: int, y: int) -> None:
         now = time.monotonic()
-        if now - self._last_move_ts < self.move_interval:
+        if now - self._last_move_ts < self.move_interval: # rate limit move events
             return
         self._last_move_ts = now
 

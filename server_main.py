@@ -11,7 +11,7 @@ import os
 KEY_FILE = "fernet.key"
 
 registered_users = {}  # email -> user_data
-connected_users = {}   # email -> client_socket
+connected_users = {}   # email -> client_socket, address
 connected_by_address = {}  # address -> client_socket
 pending_requests = {}  # request_id -> (controller_socket, target_socket)
 active_sessions = {}  # session_id -> (controller_socket, target_socket)
@@ -88,7 +88,7 @@ def get_password_from_db(email):
         encrypted_password_bytes = result[0] 
         return fernet.decrypt(encrypted_password_bytes)
     return None
-def handle_client(server: Server, client_socket):
+def handle_client(server: Server, client_socket: socket.socket):
     global registered_users, connected_users
     print("New client connected.")
 
@@ -129,8 +129,8 @@ def handle_client(server: Server, client_socket):
                     registered_users[user_email] = payload
                     response = {"status": "success",
                                 "message": "Registration successful.",
-                                "username": payload.get("username")
-                                , "address": address
+                                "username": username,
+                                "address": address
                                 }
                     connected_users[user_email] = (client_socket, address)
                     connected_by_address[address] = client_socket
@@ -179,14 +179,14 @@ def handle_client(server: Server, client_socket):
                     response = {"status": "success", "message": "Logged out."}
             client_socket.send(json.dumps(response).encode('utf-8'))
         
-        elif action == "connect_request":
+        elif action == "connect_request":#if client wants to connect to another user, we send the request to the target user if he's connected, and wait for his response
             target_address = payload.get("target_address")
             from_email = payload.get("from_email")
             from_username = payload.get("from_username") or get_username_from_db(from_email)
             from_address = payload.get("from_address")
 
             with lock:
-                target_socket = connected_by_address.get(target_address)
+                target_socket = connected_by_address.get(target_address) # socket of the target user if he's connected, otherwise None
 
                 if target_socket:
                     request_id = str(random.randint(100000, 999999))
@@ -269,7 +269,6 @@ def handle_client(server: Server, client_socket):
         
         print(connected_by_address)
         print(f"Handled action: {action} for {user_email} data: {payload}")
-
 def create_server_broadcast():
     sock_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock_udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -286,7 +285,6 @@ def create_server_broadcast():
             if msg == b"Client Here":
                 sock_udp.sendto(b"Server Here", addr)
                 print(f"Sent broadcast response to {addr}")
-
         except Exception as e:
             print(f"Broadcast listener error: {e}")
 def main():

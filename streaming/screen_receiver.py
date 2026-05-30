@@ -125,14 +125,14 @@ class ScreenReceiver:
                 if len(self.frames[frame_id]["chunks"]) == expected:
                     chunks = self.frames[frame_id]["chunks"]
 
-                    if len(chunks) == expected and all(i in chunks for i in range(expected)):
+                    if len(chunks) == expected and all(i in chunks for i in range(expected)): # sanity check to avoid KeyError and ensure we have all chunks before trying to assemble the frame
                         jpg_bytes = b"".join(chunks[i] for i in range(expected))
 
                         arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
                         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
                         if frame is not None:
-                            latency_ms = (time.perf_counter() - self.frames[frame_id]["send_time"]) * 1000
+                            latency_ms = (time.perf_counter() - self.frames[frame_id]["send_time"]) * 1000 # miliseconds
 
                             self.latest_displayed_frame_id = frame_id
 
@@ -146,4 +146,4 @@ class ScreenReceiver:
                         del self.frames[frame_id] 
         finally:
             cv2.destroyAllWindows()
-            cv2.waitKey(1)
+            cv2.waitKey(1) # this is needed to actually close the OpenCV window on some platforms

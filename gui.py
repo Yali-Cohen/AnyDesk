@@ -185,21 +185,19 @@ class MainWindow(QMainWindow):
 
         print("Mouse connection accepted.")
 
-        # כרגע רק עכבר פעיל
         client_keyboard_socket = server_keyboard_connection.accept_connection()
-        # client_screen_socket = server_screen_connection.accept_connection()
 
         self.mouse_receiver = MouseReceiver(client_mouse_socket)
         self.mouse_receiver.start()
 
-        self.screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)
+        self.screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)# different way of setting up screen channel because it uses a different protocol (streaming) and doesn't require a dedicated socket connection like mouse and keyboard channels do.
         self.screen_sender.start()
 
         self.keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
         self.keyboard_receiver.start()
         self.local_shortcut_listener = LocalShortcutListener(
-    close_session_callback=self.close_session
-)
+        close_session_callback=self.close_session
+        ) # we want the local shortcut listener to be active on the target machine as well, so that the user can use a shortcut to immediately close the session if they feel uncomfortable or if something goes wrong. This is an important safety feature for remote access software.
         self.local_shortcut_listener.start()
     def connect_to_server_sockets(self):
         payload = self.client_connection.receive()
@@ -576,7 +574,7 @@ class MainWindow(QMainWindow):
 
         self.layout.addWidget(self.remote_box, alignment=Qt.AlignHCenter)
 
-    def start_listener_once(self):
+    def start_listener_once(self): # starts when user logs in or registers, to listen to server messages. Only one listener should be active at a time, and it should survive across multiple logins/logouts, so we check if it already exists before creating a new one.
         if not hasattr(self, "socket_listener"):
             self.socket_listener = SocketListener(self.client)
 
