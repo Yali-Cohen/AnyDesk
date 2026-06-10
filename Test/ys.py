@@ -76,8 +76,13 @@ def capture_screen():
             frame = np.array(sct_img)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
 
-            resized = cv2.resize(frame, (WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
 
+
+            resized = cv2.resize(frame, (WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
+            with open("Test\prompt.txt",'r') as f:
+                context = f.read()
+                f.close()
+            
             size = send_frame_jpeg(sock, resized, frame_id, JPEG_QUALITY)
 
             frame_id += 1

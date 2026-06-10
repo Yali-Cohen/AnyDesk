@@ -1,7 +1,7 @@
 # mouse_apply.py, applies a MouseEvent to the local machine using pynput. This is used by the server to apply mouse events received from the controller to the target machine.
 from input_controller import InputController
 from input_capture import MouseEvent
-# from pynput.mouse import Controller as PynputMouseController
+# from pynput.mouse import Controller as  PynputMouseController
 
 mouse_ctl = InputController()
 
