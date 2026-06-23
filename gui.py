@@ -3,9 +3,8 @@
 
 import json
 import os
-import random
 import socket
-import sys,ctypes
+import ctypes
 import threading
 from client1 import Client
 from register import Register
@@ -22,9 +21,9 @@ from channels.local_shortcut_listener import LocalShortcutListener
 myappid = u"com.yourname.remotesupport"   # מחרוזת ייחודית משלך
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-from PySide6.QtCore import QSize, Qt, QRegularExpression
-from PySide6.QtGui import QIcon,QGuiApplication, QFont, QRegularExpressionValidator
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget,QRadioButton, QVBoxLayout, QGridLayout,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QIcon,QGuiApplication, QFont
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QWidget, QVBoxLayout ,QLineEdit, QMessageBox, QSizePolicy, QHBoxLayout, QGroupBox
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,7 +37,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.client = Client()
-        self.client_socket = self.client.get_socket()
+        self.direct_socket = self.client.get_socket()
         self.is_authenticated = False
         self.current_user = {}
         
@@ -159,48 +158,48 @@ class MainWindow(QMainWindow):
     # =====================================================
 
     def receive(self, buffer_size=4096):
-        return self.client_socket.recv(buffer_size)
+        return self.direct_socket.recv(buffer_size)
 
-    def send_ports_to_full_connection(self, client_socket):
-        server_mouse_connection = Server(host="0.0.0.0", port=0)
-        mouse_port = server_mouse_connection.port
+    def send_ports_to_full_connection(self, direct_socket):
+        mouse_channel_server = Server(host="0.0.0.0", port=0)
+        mouse_port = mouse_channel_server.port
 
-        server_keyboard_connection = Server(host="0.0.0.0", port=0)
-        keyboard_port = server_keyboard_connection.port
+        keyboard_channel_server = Server(host="0.0.0.0", port=0)
+        keyboard_port = keyboard_channel_server.port
 
-        controller_ip = client_socket.getpeername()[0]
+        controller_ip = direct_socket.getpeername()[0]
 
         ports_payload = {
-            "IP": self.ip,
+            "IP": self.local_direct_ip,
             "ports": [mouse_port, keyboard_port]
         }
 
         print(f"Sending to controller payload: {ports_payload}")
 
-        client_socket.sendall((json.dumps(ports_payload) + "\n").encode("utf-8"))
+        direct_socket.sendall((json.dumps(ports_payload) + "\n").encode("utf-8"))
 
         print("Waiting for mouse connection...")
 
-        client_mouse_socket = server_mouse_connection.accept_connection()
+        mouse_channel_socket = mouse_channel_server.accept_connection()
 
         print("Mouse connection accepted.")
 
-        client_keyboard_socket = server_keyboard_connection.accept_connection()
+        keyboard_channel_socket = keyboard_channel_server.accept_connection()
 
-        self.mouse_receiver = MouseReceiver(client_mouse_socket)
+        self.mouse_receiver = MouseReceiver(mouse_channel_socket)
         self.mouse_receiver.start()
 
         self.screen_sender = ScreenSender(target_ip=controller_ip, target_port=9999)# different way of setting up screen channel because it uses a different protocol (streaming) and doesn't require a dedicated socket connection like mouse and keyboard channels do.
         self.screen_sender.start()
 
-        self.keyboard_receiver = KeyboardReceiver(client_keyboard_socket)
+        self.keyboard_receiver = KeyboardReceiver(keyboard_channel_socket)
         self.keyboard_receiver.start()
         self.local_shortcut_listener = LocalShortcutListener(
         close_session_callback=self.close_session
         ) # we want the local shortcut listener to be active on the target machine as well, so that the user can use a shortcut to immediately close the session if they feel uncomfortable or if something goes wrong. This is an important safety feature for remote access software.
         self.local_shortcut_listener.start()
     def connect_to_server_sockets(self):
-        payload = self.client_connection.receive()
+        payload = self.direct_connection.receive()
 
         print("Raw ports payload:", payload)
 
@@ -208,12 +207,8 @@ class MainWindow(QMainWindow):
 
         print("Decoded ports payload:", msg)
 
-        ip = msg.get("IP")
+        target_ip = msg.get("IP")
         ports = msg.get("ports")
-
-        # if not ip or not ports or len(ports) <= 3:
-        #     print("Invalid ports payload:", msg)
-        #     return
 
         mouse_port = ports[0]
         keyboard_port = ports[1]
@@ -222,22 +217,22 @@ class MainWindow(QMainWindow):
         print("Mouse port:", mouse_port)
         print("Keyboard port:", keyboard_port)
         print("Screen port:", screen_port)
-        print("Target IP:", ip)
+        print("Target IP:", target_ip)
 
-        mouse_client = Client()
-        mouse_client.connect(ip, mouse_port)
+        mouse_channel_client = Client()
+        mouse_channel_client.connect(target_ip, mouse_port)
 
-        mouse_client_socket = mouse_client.get_socket()
+        mouse_channel_socket = mouse_channel_client.get_socket()
 
         print("Connected to mouse socket.")
 
-        self.mouse_sender = MouseSender(mouse_client_socket)
+        self.mouse_sender = MouseSender(mouse_channel_socket)
         self.mouse_sender.start()
 
         self.screen_receiver = ScreenReceiver(listen_ip="0.0.0.0", listen_port=screen_port)
         self.screen_receiver.start()
 
-        self.keyboard_sender = KeyboardSender(target_ip=ip, target_port=keyboard_port, close_session_callback=self.close_session)
+        self.keyboard_sender = KeyboardSender(target_ip=target_ip, target_port=keyboard_port, close_session_callback=self.close_session)
         self.keyboard_sender.start()
     def close_session(self, notify_peer=True):
         print("Closing session...")
@@ -270,8 +265,8 @@ class MainWindow(QMainWindow):
                     print(f"Error stopping {name}: {e}")
 
         for name in [
-            "client_connection",
-            "server_connection"
+            "direct_connection",
+            "direct_connection_server"
         ]:
             obj = getattr(self, name, None)
             self.safe_close(obj, name)
@@ -327,36 +322,36 @@ class MainWindow(QMainWindow):
 
             session_id = data.get("session_id")
 
-            self.server_connection = Server(host="0.0.0.0", port=9080)
+            self.direct_connection_server = Server(host="0.0.0.0", port=9080)
 
-            self.ip, port = self.server_connection.getsockname()
+            self.local_direct_ip, port = self.direct_connection_server.getsockname()
 
-            print(f"ip sent to controller {self.ip}")
+            print(f"ip sent to controller {self.local_direct_ip}")
 
             self.client.send_json({
                 "action": "connection_details",
                 "data": {
                     "session_id": session_id,
-                    "ip": self.ip,
+                    "ip": self.local_direct_ip,
                     "port": port
                 }
             })
 
-            print(f"Listening for incoming connections on {self.ip}:{port}")
+            print(f"Listening for incoming connections on {self.local_direct_ip}:{port}")
 
-            client_socket = self.server_connection.accept_connection()
-            self.client_connection = client_socket
+            direct_socket = self.direct_connection_server.accept_connection()
+            self.direct_connection = direct_socket
             print("Controller connected to controlled side.")
 
-            greeting = client_socket.recv(4096)
+            greeting = direct_socket.recv(4096)
 
             print("Received from controller:", greeting)
 
-            client_socket.sendall(b"Hello from controlled side!")
+            direct_socket.sendall(b"Hello from controlled side!")
 
             print("Sent greeting to controller.")
 
-            self.send_ports_to_full_connection(client_socket)
+            self.send_ports_to_full_connection(direct_socket)
             self.start_direct_listener()
 
         elif action == "connection_details":#Controller side
@@ -373,13 +368,13 @@ class MainWindow(QMainWindow):
 
             print(f"Connection to {ip}, {port}")
 
-            self.client_connection = Client()
 
-            self.client_connection.connect(ip, port)
+            self.direct_connection = Client()
+            self.direct_connection.connect(ip, port)
 
-            self.client_connection.send(b"Hello from controller!")
+            self.direct_connection.send(b"Hello from controller!")
 
-            greeting = self.client_connection.receive()
+            greeting = self.direct_connection.receive()
 
             print("Received from controlled side:", greeting.decode("utf-8"))
 
@@ -611,20 +606,20 @@ class MainWindow(QMainWindow):
     def send_direct_json(self, data):
         message = json.dumps(data)
 
-        if hasattr(self.client_connection, "send_json"):
-            self.client_connection.send_json(data)
+        if hasattr(self.direct_connection, "send_json"):
+            self.direct_connection.send_json(data)
 
-        elif hasattr(self.client_connection, "send"):
-            self.client_connection.send(message.encode("utf-8"))
+        elif hasattr(self.direct_connection, "send"):
+            self.direct_connection.send(message.encode("utf-8"))
 
         else:
-            self.client_connection.sendall(message.encode("utf-8"))
+            self.direct_connection.sendall(message.encode("utf-8"))
             
     def receive_direct_data(self):
-        if hasattr(self.client_connection, "receive"):
-            return self.client_connection.receive()
+        if hasattr(self.direct_connection, "receive"):
+            return self.direct_connection.receive()
         else:
-            return self.client_connection.recv(4096)
+            return self.direct_connection.recv(4096)
     def safe_close(self, obj, name):
         if obj is None:
             return

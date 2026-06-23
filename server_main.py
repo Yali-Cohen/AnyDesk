@@ -96,13 +96,7 @@ def handle_client(server: Server, client_socket: socket.socket):
         data = server.receive_data(client_socket)
         if not data:
             print("Client disconnected.")
-            if client_socket in connected_users.values():
-                with lock:
-                    for email, (sock, address) in list(connected_users.items()):
-                        if sock == client_socket:
-                            connected_users.pop(email, None)
-                            connected_by_address.pop(address, None)
-                            break
+            remove_connected_user_by_socket(client_socket)
             break
 
         try:
@@ -287,6 +281,25 @@ def create_server_broadcast():
                 print(f"Sent broadcast response to {addr}")
         except Exception as e:
             print(f"Broadcast listener error: {e}")
+def remove_connected_user_by_socket(client_socket):
+    """
+    Removes a disconnected user from all server dictionaries.
+
+    connected_users stores:
+        email -> (socket, address)
+
+    connected_by_address stores:
+        address -> socket
+    """
+    with lock:
+        for email, (sock, address) in list(connected_users.items()):
+            if sock == client_socket:
+                connected_users.pop(email, None)
+                connected_by_address.pop(address, None)
+                print(f"Removed disconnected user: {email}, address: {address}")
+                return email
+
+    return None
 def main():
     server = Server()
     print("Server listening on 0.0.0.0:9090...")
