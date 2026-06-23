@@ -22,7 +22,7 @@ class ScreenReceiver:
         self.stats_t0 = time.perf_counter()
         self.stop_event = threading.Event()
         self.thread = None
-    def cleanup_old_frames(self, now):
+    def cleanup_old_frames(self, now): #Delete frames that have not been completed within the TIMEOUT period to free up memory and avoid displaying stale frames.
         for fid in list(self.frames.keys()):
             if now - self.frames[fid]["last_seen"] > TIMEOUT:
                 del self.frames[fid]
@@ -38,7 +38,7 @@ class ScreenReceiver:
 
     def display_frame(self, frame, latency_ms):
         cv2.imshow("ANYDESK - Low Latency", frame)
-        cv2.waitKey(1)
+        cv2.waitKey(1)# this is needed to actually display the frame in the OpenCV window. Without it, the window may not update properly.
         self.displayed_frames += 1
 
         now = time.perf_counter()

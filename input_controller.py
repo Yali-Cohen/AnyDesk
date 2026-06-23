@@ -33,5 +33,6 @@ class InputController:
     # Scroll two steps down
     def scroll_pointer(self, dx, dy):
         self.mouse.scroll(dx, dy)
-input_controller = InputController()
-print("InputController initialized.")
+if __name__ == "__main__":
+    input_controller = InputController()
+    print("InputController initialized.")

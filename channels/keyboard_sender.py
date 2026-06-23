@@ -58,11 +58,16 @@ class KeyboardSender:
         self.stop_event.set()
 
         try:
+            system_keyboard.unhook_all()
+        except Exception:
+            pass
+
+        try:
             self.sock.close()
         except OSError:
             pass
 
-        if self.thread is not None:
+        if self.thread is not None and self.thread is not threading.current_thread():
             self.thread.join(timeout=1)
     def is_close_combination(self):
         ctrl_pressed = "ctrl" in self.pressed_keys

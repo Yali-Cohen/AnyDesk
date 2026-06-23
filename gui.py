@@ -198,7 +198,9 @@ class MainWindow(QMainWindow):
         close_session_callback=self.close_session
         ) # we want the local shortcut listener to be active on the target machine as well, so that the user can use a shortcut to immediately close the session if they feel uncomfortable or if something goes wrong. This is an important safety feature for remote access software.
         self.local_shortcut_listener.start()
-    def connect_to_server_sockets(self):
+        QMessageBox.critical(self, "Critical Message!", "To exit this session, please use the local shortcut Ctrl+Shift+X. This is a safety feature to ensure you can always terminate the session if needed.")
+
+    def connect_to_server_sockets(self):#Controller side, after receiving the ports from the target machine, we connect to the mouse and keyboard channels using the provided ports.
         payload = self.direct_connection.receive()
 
         print("Raw ports payload:", payload)
@@ -234,6 +236,7 @@ class MainWindow(QMainWindow):
 
         self.keyboard_sender = KeyboardSender(target_ip=target_ip, target_port=keyboard_port, close_session_callback=self.close_session)
         self.keyboard_sender.start()
+        QMessageBox.critical(self, "Critical Message!", "To exit this session, please use the local shortcut Ctrl+Shift+X. This is a safety feature to ensure you can always terminate the session if needed.")
     def close_session(self, notify_peer=True):
         print("Closing session...")
 

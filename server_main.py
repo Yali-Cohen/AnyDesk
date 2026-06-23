@@ -88,21 +88,18 @@ def get_password_from_db(email):
         encrypted_password_bytes = result[0] 
         return fernet.decrypt(encrypted_password_bytes)
     return None
+def send_json_to_socket(sock, obj):
+    """Send one JSON message using the same JSON-lines protocol as the Client class."""
+    sock.sendall((json.dumps(obj) + "\n").encode("utf-8"))
 def handle_client(server: Server, client_socket: socket.socket):
     global registered_users, connected_users
     print("New client connected.")
 
     while True:
-        data = server.receive_data(client_socket)
-        if not data:
+        msg = server.receive_data(client_socket)
+        if not msg:
             print("Client disconnected.")
             remove_connected_user_by_socket(client_socket)
-            break
-
-        try:
-            msg = json.loads(data.decode("utf-8"))
-        except Exception as e:
-            print("Failed to parse JSON:", e)
             break
         print("Received message:", msg)
         action = msg.get("action")
@@ -128,7 +125,7 @@ def handle_client(server: Server, client_socket: socket.socket):
                                 }
                     connected_users[user_email] = (client_socket, address)
                     connected_by_address[address] = client_socket
-            client_socket.send(json.dumps(response).encode('utf-8'))
+            send_json_to_socket(client_socket, response)
 
         elif action == "login":
             user_email = payload.get("email")
@@ -157,7 +154,7 @@ def handle_client(server: Server, client_socket: socket.socket):
                         response = {"status": "error", "message": "Incorrect password."}
 
                         
-            client_socket.send(json.dumps(response).encode('utf-8'))
+            send_json_to_socket(client_socket, response)
 
         elif action == "logout":
             user_email = payload.get("email")
@@ -171,8 +168,8 @@ def handle_client(server: Server, client_socket: socket.socket):
                         sock, address = connected_users.pop(user_email)
                         connected_by_address.pop(address, None)
                     response = {"status": "success", "message": "Logged out."}
-            client_socket.send(json.dumps(response).encode('utf-8'))
-        
+            send_json_to_socket(client_socket, response)
+
         elif action == "connect_request":#if client wants to connect to another user, we send the request to the target user if he's connected, and wait for his response
             target_address = payload.get("target_address")
             from_email = payload.get("from_email")
@@ -194,12 +191,12 @@ def handle_client(server: Server, client_socket: socket.socket):
                             "request_id": request_id
                         }
                     }
-                    target_socket.send(json.dumps(request_info).encode("utf-8"))
+                    send_json_to_socket(target_socket, request_info)
                     response = {"status": "success", "message": "Connection request sent."}
                 else:
                     response = {"status": "error", "message": "Target address not found or user not connected."}
 
-            client_socket.send(json.dumps(response).encode("utf-8"))
+            send_json_to_socket(client_socket, response)
 
         elif action == "incoming_response":
             request_id = payload.get("request_id")
@@ -217,8 +214,8 @@ def handle_client(server: Server, client_socket: socket.socket):
                         "session_id": request_id
                     }
                 }
-                controller_socket.send(json.dumps(response_payload).encode("utf-8"))
-                
+                send_json_to_socket(controller_socket, response_payload)
+
                 if accepted:
                     success_payload = {
                         "action": "connection_established",
@@ -227,7 +224,7 @@ def handle_client(server: Server, client_socket: socket.socket):
                             "message": "Connection established. You can start remote support session."
                         }
                     }
-                    target_socket.send(json.dumps(success_payload).encode("utf-8"))
+                    send_json_to_socket(target_socket, success_payload)
         elif action == "connection_details":
             session_id = payload.get("session_id")
             ip = payload.get("ip")
@@ -238,7 +235,7 @@ def handle_client(server: Server, client_socket: socket.socket):
                     "status": "error",
                     "message": "Invalid or expired session_id"
                 }
-                client_socket.send(json.dumps(response).encode('utf-8'))
+                send_json_to_socket(client_socket, response)
             else:
                 controller_socket, target_socket = active_sessions[session_id]
                 if client_socket != target_socket:
@@ -246,7 +243,7 @@ def handle_client(server: Server, client_socket: socket.socket):
                         "status": "error",
                         "message": "Only target can send connection_details"
                     }
-                    client_socket.send(json.dumps(response).encode('utf-8'))
+                    send_json_to_socket(client_socket, response)
                 else:
                     response = {
                         "action": "connection_details",
@@ -256,11 +253,11 @@ def handle_client(server: Server, client_socket: socket.socket):
                             "port": port
                         }
                     }
-                    controller_socket.send(json.dumps(response).encode('utf-8'))
+                    send_json_to_socket(controller_socket, response)
         else:
             response = {"status": "error", "message": "Unknown action."}
-            client_socket.send(json.dumps(response).encode('utf-8'))
-        
+            send_json_to_socket(client_socket, response)
+
         print(connected_by_address)
         print(f"Handled action: {action} for {user_email} data: {payload}")
 def create_server_broadcast():

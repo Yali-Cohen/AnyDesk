@@ -3,6 +3,7 @@
 import socket
 from protocol.framing import send_json_line, recv_json_line
 
+
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -11,6 +12,7 @@ class Client:
     def connect(self, host, port):
         if self.connected:
             return
+
         self.client_socket.connect((host, port))
         self.connected = True
         print("Connected")
@@ -20,6 +22,9 @@ class Client:
 
     def send(self, data: bytes):
         self.client_socket.sendall(data)
+
+    def receive(self, buffer_size=4096):
+        return self.client_socket.recv(buffer_size)
 
     def send_json(self, obj: dict):
         send_json_line(self.client_socket, obj)

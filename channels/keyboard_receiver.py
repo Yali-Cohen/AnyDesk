@@ -11,6 +11,7 @@ class KeyboardReceiver:
         self.stop_event = threading.Event()
         self.thread = None
         self.keyboard = Controller()
+        self.pressed_keys = set()
 
     def start(self):
         if self.thread is not None and self.thread.is_alive():
@@ -47,38 +48,49 @@ class KeyboardReceiver:
                 except Exception as e:
                     print("Error processing keyboard message:", e)
 
+        self.release_all_pressed_keys()
+
     def deserialize_key(self, data):
         """
-        הפונקציה הזאת מקבלת מידע שהגיע מהרשת
-        ומחזירה אובייקט מקש ש-pynput יודע ללחוץ עליו.
+        מקבלת מידע שהגיע מהרשת ומחזירה אובייקט מקש
+        ש-pynput יודע ללחוץ או לשחרר.
         """
-
         key_type = data.get("key_type")
         key = data.get("key")
 
         if key_type == "name":
             return self.key_from_name(key)
-        # מקשים מיוחדים: ctrl, alt, tab, enter וכו'
+
         if key_type == "special":
             return getattr(Key, key)
 
-        # מקשים רגילים לפי Virtual Key Code
         if key_type == "vk":
             return KeyCode.from_vk(key)
 
-        # גיבוי למקשים רגילים לפי תו
         if key_type == "char":
             return KeyCode.from_char(key)
 
         return None
+
     def key_from_name(self, key):
         if key is None:
             return None
+
         key = key.lower()
+
         special_keys = {
             "ctrl": Key.ctrl,
+            "ctrl_l": Key.ctrl_l,
+            "ctrl_r": Key.ctrl_r,
+
             "shift": Key.shift,
+            "shift_l": Key.shift_l,
+            "shift_r": Key.shift_r,
+
             "alt": Key.alt,
+            "alt_l": Key.alt_l,
+            "alt_r": Key.alt_r,
+
             "tab": Key.tab,
             "enter": Key.enter,
             "esc": Key.esc,
@@ -86,7 +98,6 @@ class KeyboardReceiver:
             "backspace": Key.backspace,
             "delete": Key.delete,
 
-            # Windows key
             "left windows": Key.cmd_l,
             "right windows": Key.cmd_r,
             "windows": Key.cmd,
@@ -119,7 +130,7 @@ class KeyboardReceiver:
             return KeyCode.from_char(key)
 
         return None
-        
+
     def handle_key_event(self, data):
         real_key = self.deserialize_key(data)
 
@@ -128,12 +139,29 @@ class KeyboardReceiver:
 
         if data["type"] == "key_press":
             self.keyboard.press(real_key)
+            self.pressed_keys.add(real_key)
 
         elif data["type"] == "key_release":
             self.keyboard.release(real_key)
+            self.pressed_keys.discard(real_key)
+
+    def release_all_pressed_keys(self):
+        """
+        משחררת את כל המקשים שנלחצו מרחוק ועדיין לא השתחררו.
+        זה חשוב במיוחד כשסוגרים session באמצע קומבינציית מקשים.
+        """
+        for key in list(self.pressed_keys):
+            try:
+                self.keyboard.release(key)
+            except Exception:
+                pass
+
+        self.pressed_keys.clear()
 
     def stop(self):
         self.stop_event.set()
+
+        self.release_all_pressed_keys()
 
         try:
             self.sock.close()
