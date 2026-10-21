@@ -1,5 +1,17 @@
 
-__pycache__/
-*.pyc
+# Secrets
+/fernet.key
+/users.db
+
+# Runtime database files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment variables
 .env
 *.env
+
+# Python
+__pycache__/
+*.pyc
